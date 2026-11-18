@@ -44,14 +44,15 @@ sequenceDiagram
     I->>K: top 30, filtered by access, doc type, system
     I->>V: top 30, same filters
     I->>I: Reciprocal Rank Fusion (keyword weight ×1.5 if the query has an error code or ticket key)
-    I->>X: rerank the 30 → best k (max 2 chunks per doc)
-    X->>G: best score
+    I->>X: rerank the 30, add the doc-type prior for ordering → best k (1 hit per doc)
+    X->>G: best raw score; error codes in the question present in the hits?
     alt score < threshold
         G-->>U: "I don't know…" + owning team ($0)
     else enough context
-        G->>M: cached system rules + fenced <context> + task + output format
+        G->>I: expand each hit to its section, or the whole doc if short (~6k-token budget)
+        I->>M: system rules + fenced <context> + task + output format
         M-->>I: answer with [n] citations
-        I->>I: validate citations, flag injection, (optional) Haiku faithfulness check
+        I->>I: validate citations, flag injection, Haiku faithfulness check
         I-->>U: answer, sources, warnings, cost
     end
 ```
@@ -75,25 +76,32 @@ sequenceDiagram
 
 ## Design decisions
 
-The short version is below. The longer records are in [adr/](adr/).
+The short version is below. The longer records are in [adr/](adr/), and the measurements behind the retrieval settings
+are in [review.md](review.md).
 
 1. **Keyword search lives in SQLite FTS5, whatever the vector store.** Chroma has no BM25. Keeping keyword
    search, metadata and access filters in one SQLite file means the vector store is a plug-in, and the access
-   filter runs in the same query as the search, not afterwards in Python.
+   filter is applied inside retrieval, never by the caller.
 2. **RRF, not score blending.** BM25 scores and cosine similarities aren't on the same scale. RRF only uses ranks,
    so it needs no tuning per corpus. Queries that contain an exact identifier boost the keyword list.
-3. **A cross-encoder reranker, on by default.** About 200 ms per query on a laptop CPU, $0, and the biggest single
+3. **A cross-encoder reranker, on by default.** About 230 ms per query on a laptop CPU, $0, and the biggest single
    precision gain. It also provides the score the refusal gate uses.
-4. **Refuse before the model, not only in the prompt.** The prompt still says "I don't know", but the gate stops
-   obviously thin context from costing anything, and it makes refusals testable offline.
-5. **Redact at ingest, not at answer time.** If a secret never reaches the index, it can't leak through any
+4. **A doc-type prior, for ordering only.** Help desks have far more tickets than runbooks, and tickets that repeat a
+   symptom outrank the runbook that fixes it. A +2 boost for authoritative types (overridable per template) fixes
+   the ordering. The gate still sees the raw score.
+5. **Small to big.** Small, heading-aligned chunks are good for matching, but the model needs the whole procedure.
+   Each hit is expanded to its section, or the whole document when it is short, within a fixed budget.
+6. **Refuse before the model, not only in the prompt.** The prompt still says "I don't know", but the gate stops
+   thin context and unknown error codes from costing anything, and it makes refusals testable offline.
+7. **Redact at ingest, not at answer time.** If a secret never reaches the index, it can't leak through any
    interface, including `search_kb` over MCP.
-6. **Role is set by the deployment, not the caller.** The web UI reads a header from a trusted proxy, the MCP server
-   uses its start-up setting, and the Slack bot maps channels. No tool argument can raise access.
-7. **One engine, many indexes.** The manifest pins the embedding model, dimension and store. Opening an index with a
-   different model fails loudly instead of returning nonsense.
-8. **`get_context` over MCP.** An agent that already runs on Claude gets grounded, fenced context and answers it
-   itself. That is the cheapest way for agents to use the index.
+8. **Role is set by the deployment, not the caller.** The web UI accepts a role only from a proxy holding a shared
+   secret (otherwise it is `public`), the MCP server uses its start-up setting, and the Slack bot maps channels.
+9. **One engine, many indexes.** The manifest pins the embedding model, dimension, store and reranker. An ingest
+   fingerprint (chunker, chunk size, redaction version) is folded into every stored hash, so a settings change
+   re-processes documents instead of silently skipping them.
+10. **`get_context` over MCP.** An agent that already runs on Claude gets grounded, fenced context and answers it
+    itself. That is the cheapest way for agents to use the index.
 
 ## Scaling notes
 

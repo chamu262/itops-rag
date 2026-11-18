@@ -1,10 +1,10 @@
 # Retrieval evaluation
 
-44 questions, k=4
+65 questions, k=4
 
-| Mode | hit@k | recall@k | MRR | Refusal accuracy | Access leaks | ms/query |
-|---|---|---|---|---|---|---|
-| vector | 0.97 | 0.73 | 0.94 | – | 0 | 3 |
-| keyword | 0.97 | 0.71 | 0.90 | – | 0 | 0 |
-| hybrid | 1.00 | 0.77 | 0.94 | – | 0 | 2 |
-| hybrid_rerank | 1.00 | 0.77 | 0.96 | 1.00 | 0 | 228 |
+| Mode | hit@k | MRR | primary hit@k | primary MRR | recall@k | ticket share | refusal acc. | leaks | ms/q |
+|---|---|---|---|---|---|---|---|---|---|
+| vector | 0.94 | 0.84 | 0.93 | 0.77 | 0.69 | 0.17 | – | 0 | 3 |
+| keyword | 0.96 | 0.80 | 0.89 | 0.72 | 0.70 | 0.18 | – | 0 | 0 |
+| hybrid | 0.98 | 0.86 | 0.93 | 0.75 | 0.73 | 0.20 | – | 0 | 2 |
+| hybrid_rerank | 0.98 | 0.91 | 0.98 | 0.85 | 0.74 | 0.09 | 0.95 | 0 | 234 |

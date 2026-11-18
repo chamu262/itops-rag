@@ -13,7 +13,7 @@ that finds error codes like `AADSTS53003` and `0x80180014`; local embeddings and
 > *Kestrel Cloud* (fictional people, tenants, hostnames, tickets and a fictional VPN called MeshGate). The engine is the
 > same one I run against real IT documentation; real-use configuration and live connectors live in a private repo.
 
-![Web UI: search over the demo corpus with redacted, access-tagged source chunks](docs/img/web-search.jpg)
+![Web UI: search for an Autopilot error code, showing redacted, access-tagged sources (a past ticket that matches exactly, then the runbook and vendor notes further down)](docs/img/web-search.jpg)
 
 ## What it is for
 
@@ -57,12 +57,13 @@ flowchart LR
 
     subgraph Query
         Q[Question + role] --> H[Hybrid search<br/>BM25 + vector → RRF]
-        H --> RR[Cross-encoder rerank<br/>ms-marco-MiniLM · local]
-        RR --> G{Refusal gate}
+        H --> RR[Cross-encoder rerank<br/>ms-marco-MiniLM · local<br/>+ doc-type prior, 1 hit per doc]
+        RR --> G{Refusal gate<br/>score + error-code check}
         G -- thin context --> IDK["I don't know"<br/>no API call]
-        G -- ok --> P[Prompt template<br/>+ fenced &lt;context&gt;]
+        G -- ok --> X[Small-to-big<br/>hit → section or whole doc<br/>~6k-token budget]
+        X --> P[Prompt template<br/>+ fenced &lt;context&gt;]
         P --> LLM[Claude<br/>Opus 5.5 / Haiku 5.5]
-        LLM --> V[Citation check<br/>+ optional faithfulness check]
+        LLM --> V[Citation check<br/>+ Haiku faithfulness check]
     end
 
     Sources --> L
@@ -93,11 +94,16 @@ itops-rag ask "Review this change" --prompt change_risk_review --input examples/
 itops-rag serve                                    # web UI on http://127.0.0.1:8080
 ```
 
+The web UI treats every caller as `public` unless your SSO proxy vouches for a higher role: set
+`ITOPS_RAG_ROLE_HEADER_SECRET`, and have the proxy send `X-ITOPS-Role` plus `X-ITOPS-Proxy-Secret` (and strip any
+copies the client sent). The CLI, library and MCP server use `ITOPS_RAG_DEFAULT_ROLE`.
+
 ![Terminal demo: ingest, search, a local refusal and the eval (recorded from real runs by scripts/make_demo_gif.py)](docs/img/demo.gif)
 
-When the index has nothing relevant, it says so without calling the model:
+When the index has nothing relevant, it says so without calling the model. Here the question names an error code
+that no document mentions:
 
-![Web UI: an out-of-scope question refused locally at no cost](docs/img/web-refusal.jpg)
+![Web UI: a question about an unknown error code refused locally at no cost](docs/img/web-refusal.jpg)
 
 Docker: `docker compose up --build`, then open http://localhost:8080. The image has the models baked in, so it runs
 offline.
@@ -105,7 +111,10 @@ offline.
 ## Use it from Claude Code (MCP)
 
 ```bash
-claude mcp add itops-rag -e ITOPS_RAG_INDEX_DIR="$PWD/.itops-rag/index" -- itops-rag-mcp
+claude mcp add itops-rag \
+  -e ITOPS_RAG_INDEX_DIR="$PWD/.itops-rag/index" \
+  -e ITOPS_RAG_MODEL_CACHE_DIR="$HOME/.cache/itops-rag-models" \
+  -- "$PWD/.venv/bin/itops-rag-mcp"
 ```
 
 | Tool | Cost | What it returns |
@@ -141,19 +150,34 @@ the data never is. Full example: [examples/library_usage.py](examples/library_us
 
 ## Retrieval quality
 
-Measured on the 44-question golden set ([eval/](eval/)), k = 4, with no API key. Reproduce with `itops-rag eval`.
+Measured offline (no API key) on the 65-question golden set ([eval/](eval/)): 54 answerable questions across all
+three roles, including 16 deliberately hard paraphrases, plus 11 that should be refused, 5 of them near-misses
+("Okta SAML rotation", "MG-777"). Each question is searched exactly the way `ask()` searches it (its prompt
+template's doc types and top-k), k = 4. **Primary** means the one document that should answer it (the runbook,
+KB article or standard), not just any related ticket. Reproduce with `itops-rag eval`.
 
-| Mode | hit@4 | recall@4 | MRR | Refusal accuracy | Access leaks |
-|---|---|---|---|---|---|
-| vector | 0.97 | 0.73 | 0.94 | – | 0 |
-| keyword (BM25) | 0.97 | 0.71 | 0.90 | – | 0 |
-| hybrid (RRF) | 1.00 | 0.77 | 0.94 | – | 0 |
-| **hybrid + rerank** | **1.00** | **0.77** | **0.96** | **1.00** | **0** |
+| Mode | hit@4 | MRR | primary hit@4 | primary MRR | recall@4 | ticket share | refusal accuracy | access leaks |
+|---|---|---|---|---|---|---|---|---|
+| vector | 0.94 | 0.84 | 0.93 | 0.77 | 0.69 | 0.17 | – | 0 |
+| keyword (BM25) | 0.96 | 0.80 | 0.89 | 0.72 | 0.70 | 0.18 | – | 0 |
+| hybrid (RRF) | 0.98 | 0.86 | 0.93 | 0.75 | 0.73 | 0.20 | – | 0 |
+| **hybrid + rerank** | **0.98** | **0.91** | **0.98** | **0.85** | **0.74** | **0.09** | **0.95** | **0** |
 
-Vector search alone misses an on-call checklist question and keyword search alone misses a paraphrased change
-question. Fusion catches both, and the reranker puts the right document first more often. recall@4 is capped
-because many questions have 5 to 9 relevant documents. A caveat: I wrote the golden set knowing the corpus, so read
-these as regression numbers, not a benchmark. CI fails if they drop (see `eval-gate` in the workflow).
+What moved the numbers (the [review](docs/review.md) has the experiments, including the ones that didn't help):
+
+- **Doc-type prior and one hit per document.** In this corpus 82 of 145 documents are tickets, and they used to
+  crowd runbooks out of the top 4. Adding +2 to the rerank score of authoritative doc types (for ordering only)
+  raised primary hit@4 from 0.93 to 0.98 and primary MRR from 0.80 to 0.85.
+- **Hybrid beats either half.** Vector search misses error-code questions and keyword search misses paraphrases.
+- **The free gate refuses 8 of 11 unanswerable questions**, including unknown error codes (the question names a code
+  no retrieved document mentions). The 3 near-misses it lets through score as high as real questions, so Claude's
+  own "I don't know" rule is the second line of defence.
+- **Kept as is, after measuring alternatives:** the embedding model (bge-small, arctic-embed, nomic and bge-base were
+  no better after reranking) and the reranker (bge-reranker-base was slower and worse; ms-marco-L12 was twice the
+  latency).
+
+Caveat: the questions were written knowing the corpus. Treat these as regression numbers, not a benchmark. CI fails
+if primary hit, MRR or refusal accuracy drop (see `eval-gate` in the workflow).
 
 ## Safety and cost controls
 
@@ -162,12 +186,14 @@ these as regression numbers, not a benchmark. CI fails if they drop (see `eval-g
 | Citations required | Every claim cites `[n]`. Citations are checked against the chunks actually supplied; uncited or invalid citations raise warnings. |
 | "I don't know" | If the best rerank score is below a threshold, it refuses **locally, with no API call**, and names the owning team of the nearest docs. |
 | Retrieved text is data | Chunks are fenced in `<context>`, tag-like text is neutralised, injection patterns are flagged `suspicious="true"`, and the system prompt says to ignore and report them. Tested with planted attacks in `data/demo/kestrel-cloud/adversarial/`. |
-| Redaction at ingest | API keys, tokens, JWTs, private keys, passwords, emails and phone numbers are masked before embedding (plus IPs in tickets). People fields are dropped from ticket exports. |
-| Access tags | `public` < `it-staff` < `security` per document, enforced inside both the keyword and the vector query. |
-| Cost | Embeddings, search, rerank and eval are local and free. Prompt caching, Haiku for cheap steps, a per-answer cost line, a JSONL cost ledger, and a monthly budget cap that blocks calls. |
+| Redaction at ingest | AWS, GitHub, Slack, Anthropic, Azure and Google keys, `sk-`/`pk-` keys, JWTs, Bearer/Basic auth headers, private keys (even truncated ones), `name = value` secrets (`DB_PASSWORD`, `aws_secret_access_key`, quoted values), emails and phone numbers are masked before embedding, plus IPs in tickets. People fields are dropped from ticket exports. A test ingests the adversarial fixtures and asserts that no planted secret survives. |
+| Access tags | `public` < `it-staff` < `security` per document, enforced inside both the keyword and the vector query. Documents with no tag default to `it-staff`, not `public`. The web UI is `public` unless a proxy-verified role header says otherwise. |
+| Cost | Embeddings, search, rerank, refusals and eval are local and free. Haiku 5.5 runs the cheap steps (triage, policy checks, the faithfulness check at about $0.0002), and every call is logged with its cost against a monthly budget cap that blocks calls. Unknown or fallback models are charged at the highest listed price, so the cap errs on the safe side. Prompt caching is wired but rarely pays here: the system prompt (~330 tokens) is under the 512-token minimum, and every question has different context. |
 | Model safety | Server-side fallbacks (`fallbacks: "default"`) are on for Opus, so a safety-classifier decline is retried in the same call. Turn it off with `ITOPS_RAG_SERVER_FALLBACKS=false`. |
 
-Known limit: regexes can't find personal names in free text. Loaders drop known people fields instead.
+Known limits: regexes can't find personal names in free text (loaders drop known people fields instead), and a
+determined attacker can phrase an injection the heuristics miss. The fencing and system rules still apply, but treat
+indexed content as untrusted.
 
 ## Repository layout
 
@@ -190,7 +216,7 @@ Known limit: regexes can't find personal names in free text. Loaders drop known 
 
 ```bash
 pip install -e ".[all]" --group dev
-pytest                       # 59 tests, offline
+pytest                       # 76 tests, offline
 ruff check . && ruff format --check . && mypy
 itops-rag eval --baseline eval/baseline.json
 ```
