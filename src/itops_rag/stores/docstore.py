@@ -310,6 +310,29 @@ class DocStore:
         )
         return {"documents": docs, "chunks": chunks, "by_doc_type": by_type, "by_access": by_access}
 
+    def chunk_rows(self, doc_id: str) -> list[tuple[str, int]]:
+        """``(chunk_id, rowid)`` for every chunk of a document."""
+        rows = self.conn.execute("SELECT id, rowid FROM chunks WHERE doc_id = ?", (doc_id,)).fetchall()
+        return [(str(r[0]), int(r[1])) for r in rows]
+
+    def doc_ids_for_root(self, root: str) -> set[str]:
+        """Documents previously ingested from ``root`` (used to scope pruning)."""
+        rows = self.conn.execute(
+            "SELECT id FROM documents WHERE json_extract(extra, '$.ingest_root') = ?", (root,)
+        ).fetchall()
+        return {str(r[0]) for r in rows}
+
+    def doc_ids_for_sources(self, root: str, sources: Sequence[str]) -> set[str]:
+        """Documents from ``root`` whose source file is one of ``sources`` (relative paths)."""
+        if not sources:
+            return set()
+        rows = self.conn.execute(
+            f"SELECT id FROM documents WHERE json_extract(extra, '$.ingest_root') = ? "  # noqa: S608
+            f"AND source IN ({','.join('?' * len(sources))})",
+            [root, *sources],
+        ).fetchall()
+        return {str(r[0]) for r in rows}
+
     def all_doc_ids(self) -> set[str]:
         return {str(r[0]) for r in self.conn.execute("SELECT id FROM documents").fetchall()}
 

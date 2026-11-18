@@ -55,7 +55,9 @@ def make_document(
     markdown: bool = True,
     extra: dict[str, Any] | None = None,
 ) -> Document:
-    access = as_str(meta.get("access")) or "public"
+    # Fail closed: a document without an access tag is NOT public. load_path() applies the configured default.
+    access_defaulted = not as_str(meta.get("access"))
+    access = as_str(meta.get("access")) or "it-staff"
     if access not in ACCESS_LEVELS:
         raise ValueError(f"access {access!r} is not one of {ACCESS_LEVELS}")
     try:
@@ -73,5 +75,9 @@ def make_document(
         updated=as_str(meta.get("updated")),
         tags=as_tags(meta.get("tags")),
         source=source,
-        extra={"markdown": markdown, **(extra or {})},
+        extra={
+            "markdown": markdown,
+            **({"access_defaulted": True} if access_defaulted else {}),
+            **(extra or {}),
+        },
     )

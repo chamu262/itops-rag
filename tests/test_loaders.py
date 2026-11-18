@@ -31,7 +31,7 @@ def test_markdown_without_front_matter_uses_h1(tmp_path: Path) -> None:
     f = tmp_path / "note-one.md"
     f.write_text("# My note\ntext")
     (d,) = load_markdown(f, tmp_path)
-    assert d.title == "My note" and d.id == "NOTE-ONE" and d.access == "public"
+    assert d.title == "My note" and d.id == "NOTE-ONE" and d.access == "it-staff"  # fail closed
 
 
 def test_bad_access_is_rejected(tmp_path: Path) -> None:

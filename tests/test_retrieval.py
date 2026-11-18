@@ -123,3 +123,65 @@ def test_chroma_store_works(tmp_path: Path) -> None:
         h.chunk.meta["access"] != "security"
         for h in ix.search("break-glass", role="it-staff", mode="vector", k=10)
     )
+
+
+def test_concurrent_searches_are_safe(index: Index) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def work(i: int) -> str:
+        q = ["MG-401 macOS", "Authenticator QR code", "London printer"][i % 3]
+        return index.search(q, k=2, role="security")[0].doc_id
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(work, range(600)))
+    assert set(results[0::3]) == {"RB-VPN-001"}
+    assert set(results[1::3]) == {"KB-0001"}
+    assert set(results[2::3]) == {"KB-0009"}
+
+
+def test_prune_is_scoped_to_its_folder_and_keeps_failed_files(index: Index, tmp_path: Path) -> None:
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    (a / "one.md").write_text("---\nid: A-1\n---\n# One\nalpha text")
+    (a / "two.md").write_text("---\nid: A-2\n---\n# Two\nbeta text")
+    (b / "three.md").write_text("---\nid: B-1\n---\n# Three\ngamma text")
+    index.ingest_path(a)
+    index.ingest_path(b)
+    # A-2's file breaks (bad front matter): it must not be pruned just because it failed to load this run.
+    (a / "two.md").write_text("---\naccess: everyone\n---\nbroken")
+    (a / "one.md").unlink()
+    report = index.ingest_path(a, prune_missing=True)
+    ids = index.docs.all_doc_ids()
+    assert "A-1" not in ids and "A-2" in ids and "B-1" in ids and "RB-VPN-001" in ids
+    assert report.removed == 1 and report.errors
+
+
+def test_documents_without_access_tag_fail_closed(index: Index, tmp_path: Path) -> None:
+    (tmp_path / "note.md").write_text("# Untagged\nsecret-ish internal procedure")
+    index.ingest_path(tmp_path)
+    assert index.get_document("NOTE", role="public") is None
+    assert index.get_document("NOTE", role="it-staff") is not None
+
+
+def test_pasted_input_drives_retrieval(index: Index) -> None:
+    from itops_rag import Document
+
+    index.ingest(
+        [
+            Document(
+                id="HELP-9",
+                title="HELP-9: London printer offline",
+                doc_type="ticket",
+                access="it-staff",
+                text="Printer on the 3rd floor in London shows offline. Fix: re-add queue.",
+            )
+        ]
+    )
+    ctx = index.context_for(
+        "Triage this",
+        prompt="ticket_triage",
+        input_text="Can't print in London since Monday, the 3rd floor printer shows offline",
+    )
+    assert not ctx["refused"]
+    assert ctx["chunks"][0]["doc_id"] == "HELP-9"
