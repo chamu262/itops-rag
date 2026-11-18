@@ -11,6 +11,8 @@ permissions:
 
 jobs:
   build:
+    # Only the public repo publishes. The private repo (which merges this file) must never release.
+    if: github.repository == 'chamu262/itops-rag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
