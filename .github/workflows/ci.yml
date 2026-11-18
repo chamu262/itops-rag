@@ -78,3 +78,18 @@ jobs:
       - run: itops-rag ingest data/demo/kestrel-cloud --store sqlite
       - run: itops-rag eval --baseline eval/baseline.json --report eval-report.md
       - run: cat eval-report.md >> "$GITHUB_STEP_SUMMARY"
+
+  docker:
+    name: Docker image builds and serves
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t itops-rag:ci .
+      - run: docker run -d --name itops -p 8080:8080 itops-rag:ci
+      - name: Wait for health and query the API
+        run: |
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/healthz && break; sleep 2; done
+          curl -sf "http://127.0.0.1:8080/api/search?q=AADSTS53003&k=2" | python3 -c "import json,sys; h=json.load(sys.stdin); assert h, 'no hits'; print(h[0]['doc_id'])"
+      - if: failure()
+        run: docker logs itops
