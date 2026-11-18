@@ -150,7 +150,7 @@ class DocStore:
         row = self.conn.execute("SELECT content_hash FROM documents WHERE id = ?", (doc_id,)).fetchone()
         return None if row is None else str(row[0])
 
-    def upsert(self, doc: Document, chunks: Sequence[Chunk]) -> list[int]:
+    def upsert(self, doc: Document, chunks: Sequence[Chunk], content_hash: str | None = None) -> list[int]:
         """Replace a document and its chunks. Returns the chunk rowids (used by sqlite-vec)."""
         self.delete([doc.id])
         self.conn.execute(
@@ -165,7 +165,7 @@ class DocStore:
                 doc.updated,
                 ",".join(doc.tags),
                 doc.source,
-                doc.content_hash,
+                content_hash or doc.content_hash,
                 doc.text,
                 json.dumps(doc.extra, default=str),
             ),
@@ -309,6 +309,13 @@ class DocStore:
             self.conn.execute("SELECT access, COUNT(*) FROM documents GROUP BY access").fetchall()
         )
         return {"documents": docs, "chunks": chunks, "by_doc_type": by_type, "by_access": by_access}
+
+    def section_texts(self, doc_id: str, heading: str) -> list[str]:
+        """Texts of every chunk in one section of a document, in order (used to expand a hit to its section)."""
+        rows = self.conn.execute(
+            "SELECT text FROM chunks WHERE doc_id = ? AND heading = ? ORDER BY ordinal", (doc_id, heading)
+        ).fetchall()
+        return [str(r[0]) for r in rows]
 
     def chunk_rows(self, doc_id: str) -> list[tuple[str, int]]:
         """``(chunk_id, rowid)`` for every chunk of a document."""

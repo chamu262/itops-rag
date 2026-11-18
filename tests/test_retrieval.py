@@ -185,3 +185,58 @@ def test_pasted_input_drives_retrieval(index: Index) -> None:
     )
     assert not ctx["refused"]
     assert ctx["chunks"][0]["doc_id"] == "HELP-9"
+
+
+def test_changing_chunk_settings_rechunks_instead_of_skipping(settings: Settings) -> None:
+    from tests.conftest import sample_docs
+
+    ix = Index.open(settings, embedder=HashEmbedder(), reranker=False)
+    ix.ingest(sample_docs())
+    ix.close()
+    settings.chunk_size, settings.chunk_overlap = 60, 10
+    ix = Index.open(settings, embedder=HashEmbedder(), reranker=False)
+    report = ix.ingest(sample_docs())
+    assert report.unchanged == 0 and report.updated == 4
+    assert ix.stats()["chunks"] > 4
+    ix.close()
+
+
+def test_doc_type_boost_orders_runbooks_above_tickets_but_gate_uses_raw_score(index: Index) -> None:
+    from itops_rag import Document
+    from itops_rag.core.generate import gate
+
+    index.ingest(
+        [
+            Document(
+                id="HELP-7",
+                title="HELP-7: MG-401 after macOS update",
+                doc_type="ticket",
+                access="it-staff",
+                text="MG-401 after macOS update. Fixed by meshgate reauth --force.",
+            )
+        ]
+    )
+    plain = index.search("MG-401 after macOS update", k=2, doc_type_boost={})
+    boosted = index.search("MG-401 after macOS update", k=2, doc_type_boost={"runbook": 50.0})
+    assert boosted[0].doc_id == "RB-VPN-001"
+    assert {h.doc_id for h in plain} == {h.doc_id for h in boosted}
+    assert boosted[0].rerank_score is not None and boosted[0].rerank_score < 50
+    assert gate(boosted, index.settings, "MG-401 after macOS update") is None
+
+
+def test_gate_refuses_unknown_error_codes(index: Index) -> None:
+    from itops_rag.core.generate import gate
+
+    hits = index.search("MeshGate MG-777 error", k=3)
+    assert gate(hits, index.settings, "MeshGate MG-777 error") is not None
+    assert gate(hits, index.settings, "MeshGate MG-401 error") is None
+
+
+def test_expand_gives_whole_short_docs_and_respects_budget(index: Index) -> None:
+    hits = index.search("meshgate reauth", k=2)
+    expanded = index.expand(hits)
+    rb = next(h for h in expanded if h.doc_id == "RB-VPN-001")
+    assert "## Escalate" in rb.chunk.text or "Escalate" in rb.chunk.text  # whole doc, not just one section
+    index.settings.context_char_budget = 350
+    small = index.expand(hits)
+    assert sum(len(h.chunk.text) for h in small) <= 350 + 60

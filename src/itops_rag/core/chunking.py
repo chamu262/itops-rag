@@ -12,6 +12,9 @@ from dataclasses import dataclass
 
 from itops_rag.core.models import Chunk, Document
 
+CHUNKER_VERSION = 2
+"""Bump when splitting or ``Chunk.embed_text`` changes, so ingest re-chunks instead of skipping unchanged docs."""
+
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 _SEPARATORS = ("\n\n", "\n", ". ", "; ", ", ", " ")
 
@@ -105,6 +108,22 @@ def _merge(pieces: list[str], size: int, overlap: int) -> list[str]:
     if current.strip():
         chunks.append(current.strip())
     return [c for c in chunks if c]
+
+
+def join_overlapping(parts: list[str], max_overlap: int = 400) -> str:
+    """Re-join consecutive chunks of one section, dropping the text each chunk repeats from the previous one."""
+    out = ""
+    for part in parts:
+        if not out:
+            out = part
+            continue
+        best = 0
+        for n in range(min(len(out), len(part), max_overlap), 10, -1):
+            if out.endswith(part[:n]):
+                best = n
+                break
+        out += ("" if best else "\n") + part[best:]
+    return out
 
 
 def chunk_document(doc: Document, size: int = 800, overlap: int = 100) -> list[Chunk]:

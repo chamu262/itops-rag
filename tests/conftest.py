@@ -97,6 +97,7 @@ def settings(tmp_path: Path) -> Settings:
         store="sqlite",
         cost_ledger=tmp_path / "costs.jsonl",
         min_rerank_score=-4.0,
+        verify_answers=False,
         _env_file=None,
     )  # type: ignore[call-arg]
 

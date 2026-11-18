@@ -59,6 +59,9 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ),
 ]
 
+REDACTION_VERSION = 2
+"""Bump when patterns change, so ingest re-processes documents that were redacted with older patterns."""
+
 DEFAULT_KINDS = frozenset(name for name, _ in _PATTERNS) - {"ipv4"}
 """IPs are kept by default: runbooks need gateway and subnet addresses. Turn ``ipv4`` on for ticket text."""
 

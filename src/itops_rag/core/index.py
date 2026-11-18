@@ -11,6 +11,7 @@ Each app (IT Ops, Nova, Agentic OS, Godfather) opens its own index folder; the e
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import threading
 from collections.abc import Iterable, Sequence
@@ -19,11 +20,11 @@ from pathlib import Path
 from typing import Any
 
 from itops_rag.config import SearchMode, Settings
-from itops_rag.core.chunking import chunk_document
+from itops_rag.core.chunking import CHUNKER_VERSION, chunk_document, join_overlapping
 from itops_rag.core.embeddings import Embedder, FastEmbedder
 from itops_rag.core.generate import Generator, MessagesClient, gate
-from itops_rag.core.models import Answer, Document, Hit, visible_access
-from itops_rag.core.redact import RedactionReport, Redactor
+from itops_rag.core.models import Answer, Chunk, Document, Hit, visible_access
+from itops_rag.core.redact import REDACTION_VERSION, RedactionReport, Redactor
 from itops_rag.core.rerank import CrossEncoderReranker, Reranker
 from itops_rag.core.retriever import HybridRetriever, SearchFilters
 from itops_rag.loaders import load_tree
@@ -82,6 +83,12 @@ class Index:
         # One SQLite connection is shared by the docstore and sqlite-vec, and FastAPI/MCP call in from worker
         # threads. Every index operation takes this lock; the Claude call in ask() runs outside it.
         self._lock = threading.RLock()
+        # Anything that changes what gets stored for the same source text. It is folded into every stored document
+        # hash, so changing chunk size or redaction patterns re-processes documents instead of silently skipping them.
+        self.fingerprint = (
+            f"chunker={CHUNKER_VERSION};size={settings.chunk_size};overlap={settings.chunk_overlap};"
+            f"redaction={REDACTION_VERSION};redact={settings.redact};keep={','.join(settings.redact_keep_emails)}"
+        )
         self.retriever = HybridRetriever(
             docs,
             vectors,
@@ -142,6 +149,17 @@ class Index:
             rr = None
         else:
             rr = reranker
+        if rr is not None:
+            # The refusal threshold is calibrated on one reranker's score scale; switching rerankers needs re-tuning.
+            previous = docs.get_meta("rerank_model")
+            if previous and previous != rr.name:
+                log.warning(
+                    "index was tuned with reranker %s, now using %s: re-check min_rerank_score with `itops-rag eval`",
+                    previous,
+                    rr.name,
+                )
+            docs.set_meta("rerank_model", rr.name)
+            docs.commit()
         prompts = prompts or PromptRegistry.default(settings.prompt_dirs)
         return cls(settings, docs, vectors, embedder, rr, prompts, Generator(settings, client))
 
@@ -183,8 +201,12 @@ class Index:
                     extra = frozenset({"ipv4"}) if doc.extra.get("redact_ip") else frozenset()
                     doc.text = self.redactor.redact(doc.text, doc.id, report.redaction, extra)
                     doc.title = self.redactor.redact(doc.title, doc.id, report.redaction, extra)
+                stored_hash = hashlib.sha256(f"{doc.content_hash}|{self.fingerprint}".encode()).hexdigest()[
+                    :16
+                ]
+                doc.extra["_stored_hash"] = stored_hash
                 existing = self.docs.doc_hash(doc.id)
-                if existing == doc.content_hash:
+                if existing == stored_hash:
                     report.unchanged += 1
                     continue
                 if existing is None:
@@ -219,7 +241,9 @@ class Index:
             old = self.docs.chunk_rows(doc.id)
             if old:
                 self.vectors.delete([cid for cid, _ in old], [rid for _, rid in old])
-            rowids = self.docs.upsert(doc, chunks)
+            rowids = self.docs.upsert(
+                doc, chunks, content_hash=str(doc.extra.pop("_stored_hash", "")) or None
+            )
             self.vectors.add(
                 [c.id for c in chunks],
                 rowids,
@@ -261,6 +285,7 @@ class Index:
         doc_types: Sequence[str] | None = None,
         systems: Sequence[str] | None = None,
         mode: SearchMode | None = None,
+        doc_type_boost: dict[str, float] | None = None,
     ) -> list[Hit]:
         filters = SearchFilters(
             access=visible_access(role or self.settings.default_role),
@@ -271,7 +296,64 @@ class Index:
         if mode == "hybrid_rerank" and self.reranker is None:
             mode = "hybrid"
         with self._lock:
-            return self.retriever.search(query, k or self.settings.top_k, filters, mode)
+            return self.retriever.search(
+                query,
+                k or self.settings.top_k,
+                filters,
+                mode,
+                self.settings.doc_type_boost if doc_type_boost is None else doc_type_boost,
+            )
+
+    def boosts_for(self, template_boost: dict[str, float] | None) -> dict[str, float]:
+        return {**self.settings.doc_type_boost, **(template_boost or {})}
+
+    def expand(self, hits: list[Hit]) -> list[Hit]:
+        """Small-to-big: give the model each hit's whole section (or the whole document when it is short), not the
+        800-character chunk that happened to match. Heading-split chunks are often a few hundred characters, and a
+        step list split across chunks ("fix: see step 3") is useless without its neighbours. Tickets stay as they
+        are. Stops at ``context_char_budget``."""
+        out: list[Hit] = []
+        used = 0
+        seen: set[tuple[str, str]] = set()
+        with self._lock:
+            for h in hits:
+                text, heading = h.chunk.text, h.chunk.heading
+                if h.chunk.meta.get("doc_type") != "ticket":
+                    doc = self.docs.get_document(h.doc_id)
+                    if doc and len(doc["text"]) <= self.settings.expand_whole_doc_chars:
+                        text, heading = doc["text"], ""
+                    else:
+                        parts = self.docs.section_texts(h.doc_id, h.chunk.heading)
+                        if parts:
+                            text = join_overlapping(parts, self.settings.chunk_overlap + 50)
+                key = (h.doc_id, heading if text != h.chunk.text else h.chunk.id)
+                if key in seen or (h.doc_id, "") in seen:
+                    continue
+                remaining = self.settings.context_char_budget - used
+                if remaining < 300:
+                    break
+                if len(text) > remaining:
+                    text = text[:remaining].rstrip() + "\n[... truncated to fit the context budget]"
+                seen.add(key)
+                used += len(text)
+                chunk = Chunk(
+                    id=h.chunk.id,
+                    doc_id=h.doc_id,
+                    ordinal=h.chunk.ordinal,
+                    text=text,
+                    heading=heading,
+                    meta=dict(h.chunk.meta),
+                )
+                out.append(
+                    Hit(
+                        chunk=chunk,
+                        score=h.score,
+                        vector_rank=h.vector_rank,
+                        keyword_rank=h.keyword_rank,
+                        rerank_score=h.rerank_score,
+                    )
+                )
+        return out
 
     @staticmethod
     def retrieval_query(question: str, input_text: str, needs_input: bool, limit: int = 1500) -> str:
@@ -299,17 +381,27 @@ class Index:
             raise ValueError(f"prompt {template.id!r} needs {template.input_label!r} text (use --input)")
         k = k or template.top_k or self.settings.top_k
         query = self.retrieval_query(question, input_text, template.needs_input)
-        hits = self.search(query, k=k, role=role, doc_types=template.doc_types, systems=systems)
+        boosts = self.boosts_for(template.doc_type_boost)
+        hits = self.search(
+            query, k=k, role=role, doc_types=template.doc_types, systems=systems, doc_type_boost=boosts
+        )
         # Query rewriting costs a fast-model call, so it only runs once the free gate has passed.
-        if self.settings.rewrite_queries and not dry_run and gate(hits, self.settings) is None:
+        if self.settings.rewrite_queries and not dry_run and gate(hits, self.settings, question) is None:
             rewritten = self.generator.rewrite_query(query)
             if rewritten.strip() and rewritten.strip() != query.strip():
-                better = self.search(rewritten, k=k, role=role, doc_types=template.doc_types, systems=systems)
-                if better and gate(better, self.settings) is None:
+                better = self.search(
+                    rewritten,
+                    k=k,
+                    role=role,
+                    doc_types=template.doc_types,
+                    systems=systems,
+                    doc_type_boost=boosts,
+                )
+                if better and gate(better, self.settings, question) is None:
                     hits = better
         return self.generator.answer(
             question,
-            hits,
+            self.expand(hits),
             template,
             input_text=input_text,
             dry_run=dry_run,
@@ -335,8 +427,14 @@ class Index:
         if template.needs_input and not input_text.strip():
             raise ValueError(f"prompt {template.id!r} needs {template.input_label!r} text")
         query = self.retrieval_query(question, input_text, template.needs_input)
-        hits = self.search(
-            query, k=k or template.top_k or self.settings.top_k, role=role, doc_types=template.doc_types
+        hits = self.expand(
+            self.search(
+                query,
+                k=k or template.top_k or self.settings.top_k,
+                role=role,
+                doc_types=template.doc_types,
+                doc_type_boost=self.boosts_for(template.doc_type_boost),
+            )
         )
         ans = self.generator.answer(
             question,
