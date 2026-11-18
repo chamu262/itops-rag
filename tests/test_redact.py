@@ -40,3 +40,9 @@ def test_ips_only_when_asked() -> None:
 def test_error_codes_are_not_mistaken_for_secrets() -> None:
     text = "AADSTS53003, 0x80180014, MG-401, HELP-1042, CHG-2026-0003"
     assert Redactor().redact(text) == text
+
+
+def test_phone_numbers_are_fully_masked_even_before_punctuation() -> None:
+    r = Redactor()
+    for number in ("+44 7700 900123", "+1 512 555 0147", "+46 70 123 45 67", "+351 912 345 678"):
+        assert r.redact(f"call {number}. Thanks") == "call [REDACTED:phone]. Thanks"
