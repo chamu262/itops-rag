@@ -1,0 +1,115 @@
+"""Hybrid retrieval: BM25 + vector search, fused with Reciprocal Rank Fusion, then a cross-encoder rerank.
+
+Why hybrid for IT ops: people search with exact strings ("AADSTS53003", "0x80180014", "MG-401", "HELP-1042") that
+embeddings blur, *and* with paraphrases ("the VPN says I'm not authorised") that keywords miss. RRF needs no score
+calibration between the two lists: each list contributes ``weight / (k + rank)``.
+"""
+
+from __future__ import annotations
+
+import re
+from collections import defaultdict
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+from itops_rag.config import SearchMode
+from itops_rag.core.embeddings import Embedder
+from itops_rag.core.models import Hit
+from itops_rag.core.rerank import Reranker
+from itops_rag.stores.docstore import DocStore
+from itops_rag.stores.vectors import VectorStore
+
+RRF_K = 60
+_CODE_LIKE = re.compile(r"\b(?:[A-Z]{2,}[-_]?\d{2,}|0x[0-9a-fA-F]{6,}|[A-Z]+-\d+)\b")
+
+
+def rrf(rankings: Sequence[Sequence[str]], weights: Sequence[float] | None = None,
+        k: int = RRF_K) -> list[tuple[str, float]]:
+    """Reciprocal Rank Fusion. ``rankings`` are lists of ids, best first."""
+    weights = weights or [1.0] * len(rankings)
+    scores: dict[str, float] = defaultdict(float)
+    for ranking, w in zip(rankings, weights, strict=True):
+        for rank, item in enumerate(ranking, start=1):
+            scores[item] += w / (k + rank)
+    return sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
+def keyword_weight_for(query: str, base: float) -> float:
+    """Exact identifiers in the query (error codes, ticket keys) make keyword matches worth more."""
+    return base * 1.5 if _CODE_LIKE.search(query) else base
+
+
+@dataclass(slots=True)
+class SearchFilters:
+    access: list[str]
+    doc_types: list[str] | None = None
+    systems: list[str] | None = None
+
+
+class HybridRetriever:
+    def __init__(self, docs: DocStore, vectors: VectorStore, embedder: Embedder, reranker: Reranker | None,
+                 candidates: int = 30, keyword_weight: float = 1.0, vector_weight: float = 1.0,
+                 max_chunks_per_doc: int = 2) -> None:
+        self.docs = docs
+        self.vectors = vectors
+        self.embedder = embedder
+        self.reranker = reranker
+        self.candidates = candidates
+        self.keyword_weight = keyword_weight
+        self.vector_weight = vector_weight
+        self.max_chunks_per_doc = max_chunks_per_doc
+
+    def search(self, query: str, k: int, filters: SearchFilters, mode: SearchMode = "hybrid_rerank") -> list[Hit]:
+        query = query.strip()
+        if not query:
+            return []
+        n = max(self.candidates, k)
+        vec: list[tuple[str, float]] = []
+        kw: list[tuple[str, float]] = []
+        if mode != "keyword":
+            vec = self.vectors.search(self.embedder.embed_query(query), n, filters.access, filters.doc_types,
+                                      filters.systems)
+        if mode != "vector":
+            kw = self.docs.keyword_search(query, n, filters.access, filters.doc_types, filters.systems)
+
+        vec_rank = {cid: i for i, (cid, _) in enumerate(vec, start=1)}
+        kw_rank = {cid: i for i, (cid, _) in enumerate(kw, start=1)}
+        vec_sim = dict(vec)
+
+        if mode == "vector":
+            fused = [(cid, s) for cid, s in vec]
+        elif mode == "keyword":
+            fused = [(cid, s) for cid, s in kw]
+        else:
+            fused = rrf([[c for c, _ in vec], [c for c, _ in kw]],
+                        [self.vector_weight, keyword_weight_for(query, self.keyword_weight)])
+
+        pool = fused[: n if mode == "hybrid_rerank" else max(k * 3, k)]
+        chunks = self.docs.get_chunks([cid for cid, _ in pool])
+        hits = [
+            Hit(chunk=chunks[cid], score=score, vector_rank=vec_rank.get(cid), keyword_rank=kw_rank.get(cid))
+            for cid, score in pool if cid in chunks
+        ]
+        for h in hits:
+            h.chunk.meta["vector_similarity"] = vec_sim.get(h.chunk.id)
+
+        if mode == "hybrid_rerank" and self.reranker is not None and hits:
+            scores = self.reranker.score(query, [h.chunk.embed_text for h in hits])
+            for h, s in zip(hits, scores, strict=True):
+                h.rerank_score = s
+                h.score = s
+            hits.sort(key=lambda h: -h.score)
+
+        return self._diversify(hits, k)
+
+    def _diversify(self, hits: list[Hit], k: int) -> list[Hit]:
+        per_doc: dict[str, int] = defaultdict(int)
+        out: list[Hit] = []
+        for h in hits:
+            if per_doc[h.doc_id] >= self.max_chunks_per_doc:
+                continue
+            per_doc[h.doc_id] += 1
+            out.append(h)
+            if len(out) == k:
+                break
+        return out
