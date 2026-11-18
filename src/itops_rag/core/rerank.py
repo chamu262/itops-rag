@@ -28,7 +28,9 @@ class CrossEncoderReranker:
         if self._model is None:
             from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-            self._model = TextCrossEncoder(self.name, cache_dir=str(self._cache_dir) if self._cache_dir else None)
+            self._model = TextCrossEncoder(
+                self.name, cache_dir=str(self._cache_dir) if self._cache_dir else None
+            )
         return self._model
 
     def score(self, query: str, texts: Sequence[str]) -> list[float]:

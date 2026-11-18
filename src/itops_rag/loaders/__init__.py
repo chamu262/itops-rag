@@ -47,8 +47,13 @@ def iter_files(root: Path) -> Iterator[Path]:
         yield root
         return
     for p in sorted(root.rglob("*")):
-        if p.is_file() and p.suffix.lower() in LOADERS and p.name not in SKIP_NAMES \
-                and not any(part.startswith(".") for part in p.relative_to(root).parts):
+        if (
+            p.is_file()
+            and p.suffix.lower() in LOADERS
+            and p.name not in SKIP_NAMES
+            and not p.name.endswith(".meta.yaml")
+            and not any(part.startswith(".") for part in p.relative_to(root).parts)
+        ):
             yield p
 
 
@@ -60,7 +65,7 @@ def load_path(path: Path) -> tuple[list[Document], list[str]]:
     for f in iter_files(path):
         try:
             docs.extend(LOADERS[f.suffix.lower()](f, root))
-        except Exception as e:  # noqa: BLE001 - one bad file must not stop an ingest run
+        except Exception as e:
             errors.append(f"{f}: {type(e).__name__}: {e}")
             log.warning("skipped %s: %s", f, e)
     seen: dict[str, str] = {}
@@ -74,4 +79,4 @@ def load_path(path: Path) -> tuple[list[Document], list[str]]:
     return unique, errors
 
 
-__all__ = ["LOADERS", "load_path", "iter_files"]
+__all__ = ["LOADERS", "iter_files", "load_path"]

@@ -32,12 +32,17 @@ def _normalise(m: npt.NDArray[Any]) -> Vector:
     m = np.asarray(m, dtype=np.float32)
     norms = np.linalg.norm(m, axis=-1, keepdims=True)
     norms[norms == 0] = 1.0
-    return (m / norms).astype(np.float32)
+    out: Vector = (m / norms).astype(np.float32)
+    return out
 
 
 class FastEmbedder:
-    def __init__(self, model: str = "sentence-transformers/all-MiniLM-L6-v2", cache_dir: Path | None = None,
-                 batch_size: int = 64) -> None:
+    def __init__(
+        self,
+        model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        cache_dir: Path | None = None,
+        batch_size: int = 64,
+    ) -> None:
         self.name = model
         self._cache_dir = cache_dir
         self._batch_size = batch_size
@@ -57,7 +62,9 @@ class FastEmbedder:
         if self._model is None:
             from fastembed import TextEmbedding
 
-            self._model = TextEmbedding(self.name, cache_dir=str(self._cache_dir) if self._cache_dir else None)
+            self._model = TextEmbedding(
+                self.name, cache_dir=str(self._cache_dir) if self._cache_dir else None
+            )
         return self._model
 
     def embed_documents(self, texts: Sequence[str]) -> Vector:

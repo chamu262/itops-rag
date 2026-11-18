@@ -20,13 +20,24 @@ from itops_rag.stores.docstore import DocStore
 class VectorStore(Protocol):
     kind: str
 
-    def add(self, chunk_ids: Sequence[str], rowids: Sequence[int], vectors: Vector,
-            metas: Sequence[dict[str, Any]]) -> None: ...
+    def add(
+        self,
+        chunk_ids: Sequence[str],
+        rowids: Sequence[int],
+        vectors: Vector,
+        metas: Sequence[dict[str, Any]],
+    ) -> None: ...
 
     def delete(self, chunk_ids: Sequence[str], rowids: Sequence[int]) -> None: ...
 
-    def search(self, query: Vector, k: int, access: Sequence[str], doc_types: Sequence[str] | None = None,
-               systems: Sequence[str] | None = None) -> list[tuple[str, float]]:
+    def search(
+        self,
+        query: Vector,
+        k: int,
+        access: Sequence[str],
+        doc_types: Sequence[str] | None = None,
+        systems: Sequence[str] | None = None,
+    ) -> list[tuple[str, float]]:
         """Return ``(chunk_id, cosine_similarity)`` best first, already filtered."""
         ...
 
@@ -43,7 +54,9 @@ class SqliteVectorStore:
                 f"CREATE VIRTUAL TABLE IF NOT EXISTS chunk_vec USING vec0(embedding float[{dim}] distance_metric=cosine)"
             )
         else:
-            self.conn.execute("CREATE TABLE IF NOT EXISTS chunk_vectors (rowid INTEGER PRIMARY KEY, vec BLOB NOT NULL)")
+            self.conn.execute(
+                "CREATE TABLE IF NOT EXISTS chunk_vectors (rowid INTEGER PRIMARY KEY, vec BLOB NOT NULL)"
+            )
         self._matrix: tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]] | None = None
 
     def _load_extension(self) -> bool:
@@ -54,15 +67,23 @@ class SqliteVectorStore:
             sqlite_vec.load(self.conn)
             self.conn.enable_load_extension(False)
             return True
-        except (ImportError, AttributeError, Exception):  # noqa: BLE001 - any failure means "use numpy"
+        except (ImportError, AttributeError, Exception):
             return False
 
-    def add(self, chunk_ids: Sequence[str], rowids: Sequence[int], vectors: Vector,
-            metas: Sequence[dict[str, Any]]) -> None:
+    def add(
+        self,
+        chunk_ids: Sequence[str],
+        rowids: Sequence[int],
+        vectors: Vector,
+        metas: Sequence[dict[str, Any]],
+    ) -> None:
         table = "chunk_vec(rowid, embedding)" if self.vec_enabled else "chunk_vectors(rowid, vec)"
         self.conn.executemany(
             f"INSERT OR REPLACE INTO {table} VALUES (?, ?)",  # noqa: S608
-            [(int(r), np.asarray(v, dtype=np.float32).tobytes()) for r, v in zip(rowids, vectors, strict=True)],
+            [
+                (int(r), np.asarray(v, dtype=np.float32).tobytes())
+                for r, v in zip(rowids, vectors, strict=True)
+            ],
         )
         self._matrix = None
 
@@ -75,8 +96,14 @@ class SqliteVectorStore:
         table = "chunk_vec" if self.vec_enabled else "chunk_vectors"
         return int(self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608
 
-    def search(self, query: Vector, k: int, access: Sequence[str], doc_types: Sequence[str] | None = None,
-               systems: Sequence[str] | None = None) -> list[tuple[str, float]]:
+    def search(
+        self,
+        query: Vector,
+        k: int,
+        access: Sequence[str],
+        doc_types: Sequence[str] | None = None,
+        systems: Sequence[str] | None = None,
+    ) -> list[tuple[str, float]]:
         total = self._count()
         if total == 0:
             return []
@@ -117,11 +144,18 @@ class ChromaVectorStore:
         from chromadb.config import Settings as ChromaSettings
 
         path.mkdir(parents=True, exist_ok=True)
-        self._client = chromadb.PersistentClient(path=str(path), settings=ChromaSettings(anonymized_telemetry=False))
+        self._client = chromadb.PersistentClient(
+            path=str(path), settings=ChromaSettings(anonymized_telemetry=False)
+        )
         self._col = self._client.get_or_create_collection(collection, metadata={"hnsw:space": "cosine"})
 
-    def add(self, chunk_ids: Sequence[str], rowids: Sequence[int], vectors: Vector,
-            metas: Sequence[dict[str, Any]]) -> None:
+    def add(
+        self,
+        chunk_ids: Sequence[str],
+        rowids: Sequence[int],
+        vectors: Vector,
+        metas: Sequence[dict[str, Any]],
+    ) -> None:
         if not chunk_ids:
             return
         keep = ("doc_id", "access", "doc_type", "system")
@@ -135,8 +169,14 @@ class ChromaVectorStore:
         if chunk_ids:
             self._col.delete(ids=list(chunk_ids))
 
-    def search(self, query: Vector, k: int, access: Sequence[str], doc_types: Sequence[str] | None = None,
-               systems: Sequence[str] | None = None) -> list[tuple[str, float]]:
+    def search(
+        self,
+        query: Vector,
+        k: int,
+        access: Sequence[str],
+        doc_types: Sequence[str] | None = None,
+        systems: Sequence[str] | None = None,
+    ) -> list[tuple[str, float]]:
         n = self._col.count()
         if n == 0:
             return []
@@ -146,8 +186,9 @@ class ChromaVectorStore:
         if systems:
             conds.append({"system": {"$in": list(systems)}})
         where: dict[str, Any] = conds[0] if len(conds) == 1 else {"$and": conds}
-        res = self._col.query(query_embeddings=[query.tolist()], n_results=min(k, n), where=where,
-                              include=["distances"])
+        res = self._col.query(
+            query_embeddings=[query.tolist()], n_results=min(k, n), where=where, include=["distances"]
+        )
         ids = res["ids"][0]
         dists = (res.get("distances") or [[]])[0]
         return [(str(i), 1.0 - float(d)) for i, d in zip(ids, dists, strict=True)]

@@ -37,7 +37,8 @@ def load_yaml_record(path: Path, root: Path) -> list[Document]:
         lines = [f"{as_str(rec['id'])}: {as_str(rec.get('title'))}"]
         lines += [f"{k.replace('_', ' ').capitalize()}: {as_str(rec[k])}" for k in _HEADER_KEYS if rec.get(k)]
         keys = [k for k in _SECTION_ORDER if k in rec] + sorted(
-            k for k in rec if k not in _SECTION_ORDER and k not in _META_KEYS and k not in _HEADER_KEYS)
+            k for k in rec if k not in _SECTION_ORDER and k not in _META_KEYS and k not in _HEADER_KEYS
+        )
         for k in keys:
             if rec.get(k) in (None, "", []):
                 continue
@@ -46,6 +47,14 @@ def load_yaml_record(path: Path, root: Path) -> list[Document]:
         meta.setdefault("doc_type", "change" if as_str(rec["id"]).upper().startswith("CHG") else "record")
         meta.setdefault("updated", as_str(rec.get("window_end") or rec.get("window_start"))[:10])
         meta.setdefault("access", "it-staff")
-        docs.append(make_document(meta, "\n".join(lines), path, root, default_type="record",
-                                  default_title=as_str(rec.get("title"))))
+        docs.append(
+            make_document(
+                meta,
+                "\n".join(lines),
+                path,
+                root,
+                default_type="record",
+                default_title=as_str(rec.get("title")),
+            )
+        )
     return docs

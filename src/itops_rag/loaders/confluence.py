@@ -13,12 +13,19 @@ from typing import Any
 from itops_rag.core.models import Document
 from itops_rag.loaders.common import make_document
 
-_CHROME_IDS = ("breadcrumb-section", "footer", "navigation", "page-metadata", "likes-and-labels-container",
-               "comments-section", "attachments")
+_CHROME_IDS = (
+    "breadcrumb-section",
+    "footer",
+    "navigation",
+    "page-metadata",
+    "likes-and-labels-container",
+    "comments-section",
+    "attachments",
+)
 
 
 def _to_markdown(node: Any) -> str:
-    from bs4 import NavigableString, Tag
+    from bs4.element import NavigableString, Tag
 
     out: list[str] = []
     for el in node.children:
@@ -87,5 +94,14 @@ def load_confluence_html(path: Path, root: Path) -> list[Document]:
     if not text:
         raise ValueError("empty page body")
     meta.setdefault("doc_type", "standard")
-    return [make_document(meta, text, path, root, default_type="standard", default_title=title,
-                          extra={"breadcrumb": breadcrumb})]
+    return [
+        make_document(
+            meta,
+            text,
+            path,
+            root,
+            default_type="standard",
+            default_title=title,
+            extra={"breadcrumb": breadcrumb},
+        )
+    ]

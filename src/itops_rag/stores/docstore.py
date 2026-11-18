@@ -19,9 +19,71 @@ SCHEMA_VERSION = 1
 
 # Words that carry no signal for keyword search. Error codes, ticket keys and product names are untouched.
 _STOP = frozenset(
-    "a an and are as at be but by can do does for from has have how i if in into is it its me my no not of on or "
-    "our so than that the their them then there these they this to was we what when where which who why will with "
-    "you your should would could i'm get got need".split()
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "but",
+        "by",
+        "can",
+        "do",
+        "does",
+        "for",
+        "from",
+        "has",
+        "have",
+        "how",
+        "i",
+        "if",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "me",
+        "my",
+        "no",
+        "not",
+        "of",
+        "on",
+        "or",
+        "our",
+        "so",
+        "than",
+        "that",
+        "the",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "to",
+        "was",
+        "we",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "will",
+        "with",
+        "you",
+        "your",
+        "should",
+        "would",
+        "could",
+        "i'm",
+        "get",
+        "got",
+        "need",
+    ]
 )
 _QUERY_TOKEN = re.compile(r"[\w][\w\-]*", re.UNICODE)
 
@@ -93,8 +155,20 @@ class DocStore:
         self.delete([doc.id])
         self.conn.execute(
             "INSERT INTO documents VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (doc.id, doc.title, doc.doc_type, doc.system, doc.owner, doc.access, doc.updated,
-             ",".join(doc.tags), doc.source, doc.content_hash, doc.text, json.dumps(doc.extra, default=str)),
+            (
+                doc.id,
+                doc.title,
+                doc.doc_type,
+                doc.system,
+                doc.owner,
+                doc.access,
+                doc.updated,
+                ",".join(doc.tags),
+                doc.source,
+                doc.content_hash,
+                doc.text,
+                json.dumps(doc.extra, default=str),
+            ),
         )
         rowids: list[int] = []
         for c in chunks:
@@ -104,7 +178,9 @@ class DocStore:
                 (c.id, c.doc_id, c.ordinal, c.heading, c.text, doc.access, doc.doc_type, doc.system),
             )
             rowid = int(cur.lastrowid or 0)
-            self.conn.execute("INSERT INTO chunks_fts(rowid, embed_text) VALUES (?, ?)", (rowid, c.embed_text))
+            self.conn.execute(
+                "INSERT INTO chunks_fts(rowid, embed_text) VALUES (?, ?)", (rowid, c.embed_text)
+            )
             rowids.append(rowid)
         return rowids
 
@@ -124,8 +200,9 @@ class DocStore:
 
     # ----- reads ----------------------------------------------------------------------------------------------
     @staticmethod
-    def _filters(access: Sequence[str], doc_types: Sequence[str] | None,
-                 systems: Sequence[str] | None) -> tuple[str, list[Any]]:
+    def _filters(
+        access: Sequence[str], doc_types: Sequence[str] | None, systems: Sequence[str] | None
+    ) -> tuple[str, list[Any]]:
         clauses = [f"c.access IN ({','.join('?' * len(access))})"]
         params: list[Any] = list(access)
         if doc_types:
@@ -136,8 +213,14 @@ class DocStore:
             params.extend(systems)
         return " AND ".join(clauses), params
 
-    def keyword_search(self, query: str, k: int, access: Sequence[str], doc_types: Sequence[str] | None = None,
-                       systems: Sequence[str] | None = None) -> list[tuple[str, float]]:
+    def keyword_search(
+        self,
+        query: str,
+        k: int,
+        access: Sequence[str],
+        doc_types: Sequence[str] | None = None,
+        systems: Sequence[str] | None = None,
+    ) -> list[tuple[str, float]]:
         """BM25 over title + heading + chunk text. Returns ``(chunk_id, score)``, higher is better."""
         q = fts_query(query)
         if not q:
@@ -150,8 +233,13 @@ class DocStore:
         ).fetchall()
         return [(str(r[0]), -float(r[1])) for r in rows]
 
-    def allowed_rowids(self, rowids: Sequence[int], access: Sequence[str], doc_types: Sequence[str] | None = None,
-                       systems: Sequence[str] | None = None) -> dict[int, str]:
+    def allowed_rowids(
+        self,
+        rowids: Sequence[int],
+        access: Sequence[str],
+        doc_types: Sequence[str] | None = None,
+        systems: Sequence[str] | None = None,
+    ) -> dict[int, str]:
         """Filter rowids by access and metadata, returning ``rowid -> chunk_id`` for the ones that pass."""
         if not rowids:
             return {}
@@ -162,30 +250,36 @@ class DocStore:
         ).fetchall()
         return {int(r[0]): str(r[1]) for r in rows}
 
-    def rowids_for(self, chunk_ids: Sequence[str]) -> dict[str, int]:
-        if not chunk_ids:
-            return {}
-        rows = self.conn.execute(
-            f"SELECT id, rowid FROM chunks WHERE id IN ({','.join('?' * len(chunk_ids))})", list(chunk_ids)  # noqa: S608
-        ).fetchall()
-        return {str(r[0]): int(r[1]) for r in rows}
-
     def get_chunks(self, chunk_ids: Sequence[str]) -> dict[str, Chunk]:
         if not chunk_ids:
             return {}
         rows = self.conn.execute(
-            "SELECT c.id, c.doc_id, c.ordinal, c.heading, c.text, d.title, d.doc_type, d.system, d.owner, d.access, "
-            f"d.updated, d.tags, d.source FROM chunks c JOIN documents d ON d.id = c.doc_id "  # noqa: S608
+            "SELECT c.id, c.doc_id, c.ordinal, c.heading, c.text, d.title, d.doc_type, d.system, d.owner, d.access, "  # noqa: S608 - only "?" placeholders are interpolated
+            "d.updated, d.tags, d.source FROM chunks c JOIN documents d ON d.id = c.doc_id "
             f"WHERE c.id IN ({','.join('?' * len(chunk_ids))})",
             list(chunk_ids),
         ).fetchall()
         out: dict[str, Chunk] = {}
         for r in rows:
-            meta = {"doc_id": r["doc_id"], "title": r["title"], "doc_type": r["doc_type"], "system": r["system"],
-                    "owner": r["owner"], "access": r["access"], "updated": r["updated"], "tags": r["tags"],
-                    "source": r["source"]}
-            out[r["id"]] = Chunk(id=r["id"], doc_id=r["doc_id"], ordinal=r["ordinal"], text=r["text"],
-                                 heading=r["heading"] or "", meta=meta)
+            meta = {
+                "doc_id": r["doc_id"],
+                "title": r["title"],
+                "doc_type": r["doc_type"],
+                "system": r["system"],
+                "owner": r["owner"],
+                "access": r["access"],
+                "updated": r["updated"],
+                "tags": r["tags"],
+                "source": r["source"],
+            }
+            out[r["id"]] = Chunk(
+                id=r["id"],
+                doc_id=r["doc_id"],
+                ordinal=r["ordinal"],
+                text=r["text"],
+                heading=r["heading"] or "",
+                meta=meta,
+            )
         return out
 
     def get_document(self, doc_id: str) -> dict[str, Any] | None:
@@ -208,8 +302,12 @@ class DocStore:
     def stats(self) -> dict[str, Any]:
         docs = self.conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         chunks = self.conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
-        by_type = dict(self.conn.execute("SELECT doc_type, COUNT(*) FROM documents GROUP BY doc_type").fetchall())
-        by_access = dict(self.conn.execute("SELECT access, COUNT(*) FROM documents GROUP BY access").fetchall())
+        by_type = dict(
+            self.conn.execute("SELECT doc_type, COUNT(*) FROM documents GROUP BY doc_type").fetchall()
+        )
+        by_access = dict(
+            self.conn.execute("SELECT access, COUNT(*) FROM documents GROUP BY access").fetchall()
+        )
         return {"documents": docs, "chunks": chunks, "by_doc_type": by_type, "by_access": by_access}
 
     def all_doc_ids(self) -> set[str]:

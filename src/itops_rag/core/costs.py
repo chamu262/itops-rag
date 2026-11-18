@@ -33,13 +33,19 @@ PRICES: dict[str, Price] = {
 }
 
 
-def cost_usd(model: str, input_tokens: int, output_tokens: int, cache_read: int = 0, cache_write: int = 0) -> float:
+def cost_usd(
+    model: str, input_tokens: int, output_tokens: int, cache_read: int = 0, cache_write: int = 0
+) -> float:
     p = PRICES.get(model)
     if p is None:
         log.warning("no price for model %s; cost recorded as 0", model)
         return 0.0
-    return (input_tokens * p.input + output_tokens * p.output + cache_read * p.cache_read
-            + cache_write * p.input * 1.25) / 1_000_000
+    return (
+        input_tokens * p.input
+        + output_tokens * p.output
+        + cache_read * p.cache_read
+        + cache_write * p.input * 1.25
+    ) / 1_000_000
 
 
 class BudgetExceededError(RuntimeError):
@@ -76,7 +82,11 @@ class CostLedger:
 
     def record(self, usage: Usage, purpose: str, prompt_id: str = "") -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        rec = {"ts": datetime.now(UTC).isoformat(timespec="seconds"), "purpose": purpose, "prompt_id": prompt_id,
-               **asdict(usage)}
+        rec = {
+            "ts": datetime.now(UTC).isoformat(timespec="seconds"),
+            "purpose": purpose,
+            "prompt_id": prompt_id,
+            **asdict(usage),
+        }
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")

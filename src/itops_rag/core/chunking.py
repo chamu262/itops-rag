@@ -114,6 +114,14 @@ def chunk_document(doc: Document, size: int = 800, overlap: int = 100) -> list[C
     for section in sections:
         for body in split_text(section.text, size, overlap):
             n = len(chunks)
-            chunks.append(Chunk(id=f"{doc.id}#{n}", doc_id=doc.id, ordinal=n, text=body,
-                                heading=section.heading, meta=meta))
+            chunks.append(
+                Chunk(
+                    id=f"{doc.id}#{n}",
+                    doc_id=doc.id,
+                    ordinal=n,
+                    text=body,
+                    heading=section.heading,
+                    meta=meta,
+                )
+            )
     return chunks

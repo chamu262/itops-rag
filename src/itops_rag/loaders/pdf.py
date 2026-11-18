@@ -30,7 +30,7 @@ def load_pdf(path: Path, root: Path) -> list[Document]:
         raise ValueError("no extractable text (scanned PDF?)")
 
     meta: dict[str, Any] = {}
-    info = reader.metadata or {}
+    info: Any = reader.metadata or {}
     if info.get("/Title"):
         meta["title"] = str(info["/Title"])
     for key in ("id", "doc_type", "system", "owner", "access", "updated", "tags"):
@@ -41,5 +41,8 @@ def load_pdf(path: Path, root: Path) -> list[Document]:
     if sidecar.exists():
         meta.update(yaml.safe_load(sidecar.read_text(encoding="utf-8")) or {})
     meta.setdefault("doc_type", "vendor")
-    return [make_document(meta, "\n\n".join(pages), path, root, default_type="vendor",
-                          extra={"pages": len(reader.pages)})]
+    return [
+        make_document(
+            meta, "\n\n".join(pages), path, root, default_type="vendor", extra={"pages": len(reader.pages)}
+        )
+    ]

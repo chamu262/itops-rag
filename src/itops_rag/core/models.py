@@ -47,7 +47,15 @@ class Document:
     @property
     def content_hash(self) -> str:
         h = hashlib.sha256()
-        for part in (self.title, self.text, self.doc_type, self.system, self.access, self.updated, self.owner):
+        for part in (
+            self.title,
+            self.text,
+            self.doc_type,
+            self.system,
+            self.access,
+            self.updated,
+            self.owner,
+        ):
             h.update(part.encode())
             h.update(b"\x00")
         h.update(",".join(self.tags).encode())

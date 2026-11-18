@@ -23,8 +23,9 @@ RRF_K = 60
 _CODE_LIKE = re.compile(r"\b(?:[A-Z]{2,}[-_]?\d{2,}|0x[0-9a-fA-F]{6,}|[A-Z]+-\d+)\b")
 
 
-def rrf(rankings: Sequence[Sequence[str]], weights: Sequence[float] | None = None,
-        k: int = RRF_K) -> list[tuple[str, float]]:
+def rrf(
+    rankings: Sequence[Sequence[str]], weights: Sequence[float] | None = None, k: int = RRF_K
+) -> list[tuple[str, float]]:
     """Reciprocal Rank Fusion. ``rankings`` are lists of ids, best first."""
     weights = weights or [1.0] * len(rankings)
     scores: dict[str, float] = defaultdict(float)
@@ -47,9 +48,17 @@ class SearchFilters:
 
 
 class HybridRetriever:
-    def __init__(self, docs: DocStore, vectors: VectorStore, embedder: Embedder, reranker: Reranker | None,
-                 candidates: int = 30, keyword_weight: float = 1.0, vector_weight: float = 1.0,
-                 max_chunks_per_doc: int = 2) -> None:
+    def __init__(
+        self,
+        docs: DocStore,
+        vectors: VectorStore,
+        embedder: Embedder,
+        reranker: Reranker | None,
+        candidates: int = 30,
+        keyword_weight: float = 1.0,
+        vector_weight: float = 1.0,
+        max_chunks_per_doc: int = 2,
+    ) -> None:
         self.docs = docs
         self.vectors = vectors
         self.embedder = embedder
@@ -59,7 +68,9 @@ class HybridRetriever:
         self.vector_weight = vector_weight
         self.max_chunks_per_doc = max_chunks_per_doc
 
-    def search(self, query: str, k: int, filters: SearchFilters, mode: SearchMode = "hybrid_rerank") -> list[Hit]:
+    def search(
+        self, query: str, k: int, filters: SearchFilters, mode: SearchMode = "hybrid_rerank"
+    ) -> list[Hit]:
         query = query.strip()
         if not query:
             return []
@@ -67,8 +78,9 @@ class HybridRetriever:
         vec: list[tuple[str, float]] = []
         kw: list[tuple[str, float]] = []
         if mode != "keyword":
-            vec = self.vectors.search(self.embedder.embed_query(query), n, filters.access, filters.doc_types,
-                                      filters.systems)
+            vec = self.vectors.search(
+                self.embedder.embed_query(query), n, filters.access, filters.doc_types, filters.systems
+            )
         if mode != "vector":
             kw = self.docs.keyword_search(query, n, filters.access, filters.doc_types, filters.systems)
 
@@ -81,14 +93,17 @@ class HybridRetriever:
         elif mode == "keyword":
             fused = [(cid, s) for cid, s in kw]
         else:
-            fused = rrf([[c for c, _ in vec], [c for c, _ in kw]],
-                        [self.vector_weight, keyword_weight_for(query, self.keyword_weight)])
+            fused = rrf(
+                [[c for c, _ in vec], [c for c, _ in kw]],
+                [self.vector_weight, keyword_weight_for(query, self.keyword_weight)],
+            )
 
         pool = fused[: n if mode == "hybrid_rerank" else max(k * 3, k)]
         chunks = self.docs.get_chunks([cid for cid, _ in pool])
         hits = [
             Hit(chunk=chunks[cid], score=score, vector_rank=vec_rank.get(cid), keyword_rank=kw_rank.get(cid))
-            for cid, score in pool if cid in chunks
+            for cid, score in pool
+            if cid in chunks
         ]
         for h in hits:
             h.chunk.meta["vector_similarity"] = vec_sim.get(h.chunk.id)

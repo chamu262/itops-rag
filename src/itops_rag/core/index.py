@@ -48,13 +48,28 @@ class IngestReport:
     redaction: RedactionReport = field(default_factory=RedactionReport)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"added": self.added, "updated": self.updated, "unchanged": self.unchanged, "removed": self.removed,
-                "chunks": self.chunks, "errors": self.errors, "redacted": dict(self.redaction.counts)}
+        return {
+            "added": self.added,
+            "updated": self.updated,
+            "unchanged": self.unchanged,
+            "removed": self.removed,
+            "chunks": self.chunks,
+            "errors": self.errors,
+            "redacted": dict(self.redaction.counts),
+        }
 
 
 class Index:
-    def __init__(self, settings: Settings, docs: DocStore, vectors: VectorStore, embedder: Embedder,
-                 reranker: Reranker | None, prompts: PromptRegistry, generator: Generator) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        docs: DocStore,
+        vectors: VectorStore,
+        embedder: Embedder,
+        reranker: Reranker | None,
+        prompts: PromptRegistry,
+        generator: Generator,
+    ) -> None:
         self.settings = settings
         self.docs = docs
         self.vectors = vectors
@@ -63,15 +78,28 @@ class Index:
         self.prompts = prompts
         self.generator = generator
         self.redactor = Redactor(keep_emails=settings.redact_keep_emails)
-        self.retriever = HybridRetriever(docs, vectors, embedder, reranker, candidates=settings.candidates,
-                                         keyword_weight=settings.keyword_weight, vector_weight=settings.vector_weight,
-                                         max_chunks_per_doc=settings.max_chunks_per_doc)
+        self.retriever = HybridRetriever(
+            docs,
+            vectors,
+            embedder,
+            reranker,
+            candidates=settings.candidates,
+            keyword_weight=settings.keyword_weight,
+            vector_weight=settings.vector_weight,
+            max_chunks_per_doc=settings.max_chunks_per_doc,
+        )
 
     # ----- construction ---------------------------------------------------------------------------------------
     @classmethod
-    def open(cls, settings: Settings | None = None, *, embedder: Embedder | None = None,
-             reranker: Reranker | None | bool = True, client: MessagesClient | None = None,
-             prompts: PromptRegistry | None = None) -> Index:
+    def open(
+        cls,
+        settings: Settings | None = None,
+        *,
+        embedder: Embedder | None = None,
+        reranker: Reranker | bool | None = True,
+        client: MessagesClient | None = None,
+        prompts: PromptRegistry | None = None,
+    ) -> Index:
         """Open (or create) the index in ``settings.index_dir``.
 
         ``reranker=True`` loads the local cross-encoder, ``False``/``None`` disables reranking, or pass your own.
@@ -86,9 +114,12 @@ class Index:
             have = docs.get_meta(key)
             if have is not None and have != want:
                 raise IndexMismatchError(
-                    f"index at {index_dir} was built with {key}={have}, not {want}. Rebuild it with --rebuild.")
+                    f"index at {index_dir} was built with {key}={have}, not {want}. Rebuild it with --rebuild."
+                )
         if settings.store != "auto" and docs.get_meta("store") not in (None, settings.store):
-            raise IndexMismatchError(f"index at {index_dir} uses store {docs.get_meta('store')}, not {settings.store}")
+            raise IndexMismatchError(
+                f"index at {index_dir} uses store {docs.get_meta('store')}, not {settings.store}"
+            )
 
         vectors: VectorStore
         if store_kind == "chroma":
@@ -120,8 +151,9 @@ class Index:
             shutil.rmtree(d)
 
     # ----- ingest ---------------------------------------------------------------------------------------------
-    def ingest(self, documents: Iterable[Document], *, prune_missing: bool = False,
-               batch_size: int = 64) -> IngestReport:
+    def ingest(
+        self, documents: Iterable[Document], *, prune_missing: bool = False, batch_size: int = 64
+    ) -> IngestReport:
         """Redact, chunk, embed and store documents. Unchanged documents (same content hash) are skipped."""
         report = IngestReport()
         seen: set[str] = set()
@@ -161,12 +193,18 @@ class Index:
         vectors = self.embedder.embed_documents([c.embed_text for c in all_chunks])
         offset = 0
         for doc, chunks in pending:
-            old = self.docs.conn.execute("SELECT id, rowid FROM chunks WHERE doc_id = ?", (doc.id,)).fetchall()
+            old = self.docs.conn.execute(
+                "SELECT id, rowid FROM chunks WHERE doc_id = ?", (doc.id,)
+            ).fetchall()
             if old:
                 self.vectors.delete([r[0] for r in old], [int(r[1]) for r in old])
             rowids = self.docs.upsert(doc, chunks)
-            self.vectors.add([c.id for c in chunks], rowids, vectors[offset: offset + len(chunks)],
-                             [c.meta for c in chunks])
+            self.vectors.add(
+                [c.id for c in chunks],
+                rowids,
+                vectors[offset : offset + len(chunks)],
+                [c.meta for c in chunks],
+            )
             offset += len(chunks)
         return len(all_chunks)
 
@@ -178,50 +216,97 @@ class Index:
 
     def delete(self, doc_ids: Iterable[str]) -> None:
         for doc_id in list(doc_ids):
-            chunk_rows = self.docs.conn.execute("SELECT id, rowid FROM chunks WHERE doc_id = ?", (doc_id,)).fetchall()
+            chunk_rows = self.docs.conn.execute(
+                "SELECT id, rowid FROM chunks WHERE doc_id = ?", (doc_id,)
+            ).fetchall()
             self.vectors.delete([r[0] for r in chunk_rows], [int(r[1]) for r in chunk_rows])
             self.docs.delete([doc_id])
         self.docs.commit()
 
     # ----- query ----------------------------------------------------------------------------------------------
-    def search(self, query: str, *, k: int | None = None, role: str | None = None,
-               doc_types: Sequence[str] | None = None, systems: Sequence[str] | None = None,
-               mode: SearchMode | None = None) -> list[Hit]:
-        filters = SearchFilters(access=visible_access(role or self.settings.default_role),
-                                doc_types=list(doc_types) if doc_types else None,
-                                systems=list(systems) if systems else None)
+    def search(
+        self,
+        query: str,
+        *,
+        k: int | None = None,
+        role: str | None = None,
+        doc_types: Sequence[str] | None = None,
+        systems: Sequence[str] | None = None,
+        mode: SearchMode | None = None,
+    ) -> list[Hit]:
+        filters = SearchFilters(
+            access=visible_access(role or self.settings.default_role),
+            doc_types=list(doc_types) if doc_types else None,
+            systems=list(systems) if systems else None,
+        )
         mode = mode or self.settings.mode
         if mode == "hybrid_rerank" and self.reranker is None:
             mode = "hybrid"
         return self.retriever.search(query, k or self.settings.top_k, filters, mode)
 
-    def ask(self, question: str, *, prompt: str = "qa", input_text: str = "", role: str | None = None,
-            k: int | None = None, systems: Sequence[str] | None = None, dry_run: bool = False,
-            assistant_name: str = "IT Ops RAG", audience: str = "the IT operations team") -> Answer:
+    def ask(
+        self,
+        question: str,
+        *,
+        prompt: str = "qa",
+        input_text: str = "",
+        role: str | None = None,
+        k: int | None = None,
+        systems: Sequence[str] | None = None,
+        dry_run: bool = False,
+        assistant_name: str = "IT Ops RAG",
+        audience: str = "the IT operations team",
+    ) -> Answer:
         template = self.prompts.get(prompt)
+        if template.needs_input and not input_text.strip():
+            raise ValueError(f"prompt {template.id!r} needs {template.input_label!r} text (use --input)")
         query = question
         if self.settings.rewrite_queries and not dry_run:
             query = self.generator.rewrite_query(question)
-        hits = self.search(query, k=k or template.top_k or self.settings.top_k, role=role,
-                           doc_types=template.doc_types, systems=systems)
-        return self.generator.answer(question, hits, template, input_text=input_text, dry_run=dry_run,
-                                     assistant_name=assistant_name, audience=audience)
+        hits = self.search(
+            query,
+            k=k or template.top_k or self.settings.top_k,
+            role=role,
+            doc_types=template.doc_types,
+            systems=systems,
+        )
+        return self.generator.answer(
+            question,
+            hits,
+            template,
+            input_text=input_text,
+            dry_run=dry_run,
+            assistant_name=assistant_name,
+            audience=audience,
+        )
 
-    def context_for(self, question: str, *, prompt: str = "qa", input_text: str = "", role: str | None = None,
-                    k: int | None = None) -> dict[str, Any]:
+    def context_for(
+        self,
+        question: str,
+        *,
+        prompt: str = "qa",
+        input_text: str = "",
+        role: str | None = None,
+        k: int | None = None,
+    ) -> dict[str, Any]:
         """Retrieval plus the fully rendered prompt, *without* calling a model.
 
         This is the cheapest way for an agent that already runs on Claude (Claude Code, an MCP client) to use the
         index: it gets grounded, fenced context and answers with its own model, so there is no second API bill.
         """
         template = self.prompts.get(prompt)
-        hits = self.search(question, k=k or template.top_k or self.settings.top_k, role=role,
-                           doc_types=template.doc_types)
+        hits = self.search(
+            question, k=k or template.top_k or self.settings.top_k, role=role, doc_types=template.doc_types
+        )
         ans = self.generator.answer(question, hits, template, input_text=input_text, dry_run=True)
-        return {"refused": ans.refused, "reason": ans.reason, "warnings": ans.warnings,
-                "system": self.generator.system_prompt("IT Ops RAG", "the IT operations team"),
-                "prompt": ans.text.split("--- user ---\n", 1)[-1] if not ans.refused else ans.text,
-                "chunks": [h.to_dict() for h in hits]}
+        return {
+            "refused": ans.refused,
+            "reason": ans.reason,
+            "warnings": ans.warnings,
+            "system": self.generator.system_prompt("IT Ops RAG", "the IT operations team"),
+            "prompt": ans.text.split("--- user ---\n", 1)[-1] if not ans.refused else ans.text,
+            "chunks": [h.to_dict() for h in hits],
+        }
 
     def get_document(self, doc_id: str, role: str | None = None) -> dict[str, Any] | None:
         d = self.docs.get_document(doc_id)
@@ -230,8 +315,13 @@ class Index:
         return d
 
     def stats(self) -> dict[str, Any]:
-        return {**self.docs.stats(), "store": self.vectors.kind, "embed_model": self.embedder.name,
-                "reranker": getattr(self.reranker, "name", None), "index_dir": str(self.settings.index_dir)}
+        return {
+            **self.docs.stats(),
+            "store": self.vectors.kind,
+            "embed_model": self.embedder.name,
+            "reranker": getattr(self.reranker, "name", None),
+            "index_dir": str(self.settings.index_dir),
+        }
 
     def close(self) -> None:
         self.docs.close()

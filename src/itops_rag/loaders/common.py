@@ -21,7 +21,7 @@ def split_front_matter(text: str) -> tuple[dict[str, Any], str]:
     data = yaml.safe_load(m.group(1)) or {}
     if not isinstance(data, dict):
         raise ValueError("front matter must be a mapping")
-    return data, text[m.end():]
+    return data, text[m.end() :]
 
 
 def slug(path: Path) -> str:
@@ -44,8 +44,17 @@ def as_tags(value: Any) -> list[str]:
     return [str(t).strip() for t in value if str(t).strip()]
 
 
-def make_document(meta: dict[str, Any], text: str, path: Path, root: Path, *, default_type: str,
-                  default_title: str = "", markdown: bool = True, extra: dict[str, Any] | None = None) -> Document:
+def make_document(
+    meta: dict[str, Any],
+    text: str,
+    path: Path,
+    root: Path,
+    *,
+    default_type: str,
+    default_title: str = "",
+    markdown: bool = True,
+    extra: dict[str, Any] | None = None,
+) -> Document:
     access = as_str(meta.get("access")) or "public"
     if access not in ACCESS_LEVELS:
         raise ValueError(f"access {access!r} is not one of {ACCESS_LEVELS}")
