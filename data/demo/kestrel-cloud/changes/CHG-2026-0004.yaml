@@ -1,0 +1,35 @@
+id: CHG-2026-0004
+title: Renew RADIUS server certificate for KC-Corp 802.1X Wi-Fi
+system: network
+owner: Workplace Network
+access: it-staff
+risk: medium
+type: normal
+window_start: 2026-04-13T19:00:00Z
+window_end: 2026-04-13T20:00:00Z
+status: implemented
+summary: >
+  The RADIUS server certificate used for EAP-TLS on the KC-Corp SSID (radius01/radius02.kestrelcloud.example,
+  10.10.5.20 and 10.10.5.21) expires on 2026-04-30. Replace it with a new certificate from the internal CA.
+impact: >
+  Clients that do not trust the issuer of the new server certificate will fail to join KC-Corp. Guest Wi-Fi
+  and wired networks unaffected.
+plan:
+  - Issue new server certificate from the internal CA (same subject name radius.kestrelcloud.example).
+  - Confirm the issuing CA chain is in the Jamf and Intune Wi-Fi trust settings.
+  - Install the certificate on radius02, test with a Mac and a Windows test device, then radius01.
+  - Monitor authentication success rate for 30 minutes.
+backout:
+  - Re-bind the previous certificate (valid until 2026-04-30) on both RADIUS servers.
+validation:
+  - Test Mac and Windows devices join KC-Corp.
+  - Authentication success rate above 98% in RADIUS logs next morning.
+outcome: >
+  Implemented. The new certificate was issued by a new intermediate CA after the CA hierarchy refresh. The
+  Intune Wi-Fi profile for Windows trusted only the old intermediate; Windows devices failed next morning
+  (INC0010005). The Windows test device had passed because it still had a cached PMK. Fixed by updating Intune
+  trust profiles; certificate kept in place.
+lessons: >
+  Test with a device that has forgotten the network. Check the issuing intermediate, not just the root, in
+  every MDM's Wi-Fi profile.
+related: [INC0010005, HELP-1045]

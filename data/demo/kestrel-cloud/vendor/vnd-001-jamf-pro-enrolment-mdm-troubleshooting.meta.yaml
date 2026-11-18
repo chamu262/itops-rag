@@ -1,0 +1,15 @@
+id: VND-001
+title: Jamf Pro - enrolment and MDM profile troubleshooting notes
+doc_type: vendor
+system: jamf
+owner: Endpoint Engineering
+access: it-staff
+updated: 2026-08-04
+tags:
+- jamf
+- mdm
+- enrolment
+- apns
+- ade
+- macos
+- notes

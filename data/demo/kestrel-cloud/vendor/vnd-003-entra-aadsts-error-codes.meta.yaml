@@ -1,0 +1,14 @@
+id: VND-003
+title: Microsoft Entra ID - sign-in error code quick reference (AADSTS codes)
+doc_type: vendor
+system: entra
+owner: Identity & Access
+access: it-staff
+updated: 2026-10-21
+tags:
+- entra
+- aadsts
+- sign-in
+- error-codes
+- conditional-access
+- mfa

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IT Operations : IT On-call Rota Rules and Severity Definitions (SEV1-SEV4)</title>
+        <link rel="stylesheet" href="styles/site.css" type="text/css" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="itops:id" content="CF-005">
+        <meta name="itops:doc_type" content="standard">
+        <meta name="itops:system" content="general">
+        <meta name="itops:owner" content="Platform SRE">
+        <meta name="itops:access" content="it-staff">
+        <meta name="itops:updated" content="2026-06-20">
+        <meta name="itops:tags" content="oncall, severity, incident, rota, escalation, sev1">
+    </head>
+
+    <body class="theme-default aui-theme-default">
+        <div id="page">
+            <div id="main" class="aui-page-panel">
+                <div id="main-header">
+                    <div id="breadcrumb-section">
+                        <ol id="breadcrumbs">
+                            <li class="first">
+                                <span><a href="index.html">IT Operations</a></span>
+                            </li>
+                            <li>
+                                <span><a href="Operations_131090.html">Operations</a></span>
+                            </li>
+                        </ol>
+                    </div>
+                    <h1 id="title-heading" class="pagetitle">
+                        <span id="title-text">
+                            IT Operations : IT On-call Rota Rules and Severity Definitions (SEV1-SEV4)
+                        </span>
+                    </h1>
+                </div>
+
+                <div id="content" class="view">
+                    <div class="page-metadata">
+                        Created by <span class='author'> Platform SRE</span>, last modified on Jun 20, 2026
+                    </div>
+                    <div id="main-content" class="wiki-content group">
+<h2 id="OnCall-Rota">Rota</h2>
+<ul><li>Primary IT on-call covers out-of-hours for workplace systems: identity, endpoints, Google Workspace, MeshGate and office networks. Weekly rotation, handover Monday 10:00 CET (template OC-002).</li><li>Two follow-the-sun shifts: EU primary 19:00 to 07:00 CET and weekends; US primary covers 18:00 to 23:00 US Central to bridge the gap. During business hours, team queues handle incidents.</li><li>Secondary on-call is the team lead of the system owner (escalation matrix OC-001).</li><li>Security Operations runs a separate 24/7 rota for security incidents.</li><li>No one is on call more than one week in four. Swaps are arranged in <code>#it-oncall</code> and updated in the paging schedule by the person giving away the shift.</li><li>On-call engineers must be able to reach a laptop and network within 15 minutes and stay sober and fit to work.</li></ul>
+<h2 id="OnCall-Severity">Severity definitions</h2>
+<div class="table-wrap"><table class="confluenceTable"><tbody>
+<tr><th class="confluenceTh">Severity</th><th class="confluenceTh">Definition</th><th class="confluenceTh">Examples</th><th class="confluenceTh">Acknowledge</th><th class="confluenceTh">Updates</th></tr>
+<tr><td class="confluenceTd"><strong>SEV1</strong></td><td class="confluenceTd">Critical business impact: a whole office or more than 25% of staff cannot work, or a confirmed security incident with data at risk</td><td class="confluenceTd">Entra sign-in down, Google SSO broken (RB-GWS-002), all MeshGate gateways down, break-glass use</td><td class="confluenceTd">15 min, 24/7</td><td class="confluenceTd">Every 30 min in <code>#it-status</code></td></tr>
+<tr><td class="confluenceTd"><strong>SEV2</strong></td><td class="confluenceTd">Major degradation: one critical system or one office significantly impaired, workaround hard</td><td class="confluenceTd">One MeshGate gateway down, Jamf APNs expired, CA policy blocking a department</td><td class="confluenceTd">30 min, 24/7</td><td class="confluenceTd">Every 60 min</td></tr>
+<tr><td class="confluenceTd"><strong>SEV3</strong></td><td class="confluenceTd">Minor: one team or function affected, workaround exists</td><td class="confluenceTd">Printer floor outage, Autopilot failures for a model, patch SLA breach</td><td class="confluenceTd">Next business day, 4 h</td><td class="confluenceTd">Daily</td></tr>
+<tr><td class="confluenceTd"><strong>SEV4</strong></td><td class="confluenceTd">Single user or cosmetic</td><td class="confluenceTd">One user cannot connect, wrong device name</td><td class="confluenceTd">Normal HELP queue</td><td class="confluenceTd">On ticket</td></tr>
+</tbody></table></div>
+<div class="confluence-information-macro confluence-information-macro-warning"><span class="aui-icon aui-icon-small aui-iconfont-info confluence-information-macro-icon"></span><div class="confluence-information-macro-body"><p>When unsure between two severities, pick the higher one. Downgrading later is free; a late upgrade is not.</p></div></div>
+<h2 id="OnCall-Roles">Incident roles (SEV1 and SEV2)</h2>
+<ul><li><strong>Incident Commander (IC)</strong>: the on-call engineer until handed over. Coordinates, does not fix.</li><li><strong>Communications lead</strong>: posts in <code>#it-status</code> and the status page. Service Desk lead during business hours.</li><li><strong>Subject matter experts</strong>: paged by the IC from OC-001.</li><li>First actions: OC-003 (first 15 minutes of a SEV1).</li></ul>
+<h2 id="OnCall-After">After the incident</h2>
+<ul><li>SEV1 and SEV2: blameless post-mortem (PM-) within 5 business days, reviewed in the weekly ops meeting.</li><li>SEV3: short summary on the INC ticket.</li><li>Time worked out of hours is logged for compensation per the local on-call agreement.</li></ul>
+<h2 id="OnCall-Paging">Paging rules</h2>
+<ul><li>Pages come only from: the Service Desk out-of-hours phone line, monitoring alerts, and Security Operations.</li><li>Slack messages are not pages. Anyone needing urgent help out of hours calls the Service Desk number (KB-0014).</li></ul>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" role="contentinfo">
+                <section class="footer-body">
+                    <p>Document generated by Confluence on Nov 14, 2026 16:42</p>
+                    <div id="footer-logo"><a href="http://www.atlassian.com/">Atlassian</a></div>
+                </section>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,34 @@
+id: CHG-2026-0010
+title: Platform SSO for macOS - pilot rollout
+system: macos
+owner: Endpoint Engineering
+access: it-staff
+risk: medium
+type: normal
+window_start: 2026-04-27T08:00:00Z
+window_end: 2026-05-29T17:00:00Z
+status: implemented
+summary: >
+  Deploy the Platform SSO configuration profile (Microsoft Enterprise SSO extension, password method) via
+  Jamf Pro to a pilot group of 40 Macs, so the local Mac password stays in sync with Entra ID and apps get SSO.
+impact: >
+  Pilot users see a "Registration required" notification and must complete registration once. The local
+  password changes to the Entra password at next sync.
+plan:
+  - Deploy current Company Portal to the pilot group.
+  - Deploy Platform SSO profile (password method) scoped to "PSSO Pilot" smart group.
+  - Publish user guide in Self Service and brief the Service Desk.
+  - Collect feedback weekly; track tickets tagged "psso".
+backout:
+  - Unscope the Platform SSO profile; users keep their current local password.
+validation:
+  - "'app-sso platform -s' shows registered on 95% of pilot Macs."
+  - Password change in Entra reflected at Mac unlock within one session.
+  - FileVault unlock works with the new password.
+outcome: >
+  Implemented for 40 Macs. Two issues: outdated Company Portal blocked registration (HELP-1049), and a subgroup
+  accidentally got the Secure Enclave key method without password sync (HELP-1059). Later, a Company Portal
+  update reset registrations on 14 pilot Macs (INC0010012).
+lessons: >
+  Pin Company Portal versions for the pilot group. Use one PSSO profile per method and name it clearly.
+related: [HELP-1049, HELP-1059, INC0010012]

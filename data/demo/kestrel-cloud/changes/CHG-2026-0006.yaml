@@ -1,0 +1,34 @@
+id: CHG-2026-0006
+title: Intune Windows 11 feature update - ring 1 and ring 2
+system: windows
+owner: Endpoint Engineering
+access: it-staff
+risk: medium
+type: normal
+window_start: 2026-06-29T07:00:00Z
+window_end: 2026-07-17T17:00:00Z
+status: implemented
+summary: >
+  Deploy the latest Windows 11 feature update using Intune feature update policies: ring 1 (IT + pilot, ~30
+  devices) from 2026-06-29, ring 2 (all remaining ~230 devices) from 2026-07-06.
+impact: >
+  One restart per device (~30-45 minutes). Users get 5 days of deferral before a forced restart outside
+  active hours.
+plan:
+  - Confirm app compatibility for MeshGate, security agent, and printer drivers in the test lab.
+  - Assign feature update policy to ring 1 group.
+  - Review Windows Update reports and Service Desk tickets after 5 days.
+  - Assign to ring 2 if no blocking issue.
+backout:
+  - Pause the feature update policy (stops further installs).
+  - Users can roll back within 10 days via Settings > System > Recovery; Service Desk can trigger remotely.
+validation:
+  - Ring 1 at 90% on the new version within 5 days.
+  - No new Sev 2 incidents linked to the update.
+  - Compliance rate unchanged.
+outcome: >
+  MeshGate 4.7.x crashed on launch on 11 ring 1 devices (INC0010010). Ring 2 paused, MeshGate 4.8.2 deployed,
+  ring 2 resumed 2026-07-08. Completed 2026-07-17 with 97% on target version.
+lessons: >
+  Add MeshGate client minimum version as a requirement in the feature update readiness checklist.
+related: [INC0010010]

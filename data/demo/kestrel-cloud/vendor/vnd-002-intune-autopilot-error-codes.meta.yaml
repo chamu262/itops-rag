@@ -1,0 +1,14 @@
+id: VND-002
+title: Microsoft Intune - Windows Autopilot error code reference
+doc_type: vendor
+system: intune
+owner: Endpoint Engineering
+access: it-staff
+updated: 2026-07-03
+tags:
+- intune
+- autopilot
+- windows
+- error-codes
+- esp
+- enrolment

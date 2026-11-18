@@ -1,0 +1,33 @@
+id: CHG-2026-0007
+title: "Conditional Access: require compliant device for admin portals and admin roles"
+system: entra
+owner: Identity & Access
+access: it-staff
+risk: high
+type: normal
+window_start: 2026-07-06T07:00:00Z
+window_end: 2026-07-06T09:00:00Z
+status: implemented
+summary: >
+  Move policy CA-021 "Admin portals require compliant device" from report-only to enforced. Applies to users
+  with privileged directory roles and to Microsoft admin portals for all users. Break-glass accounts excluded.
+impact: >
+  Admins on unmanaged or non-compliant devices are blocked with AADSTS53003. No end-user impact.
+plan:
+  - Review 30 days of report-only results; contact admins with "would have been blocked" sign-ins.
+  - Confirm both break-glass accounts are excluded and their sign-in alerting works.
+  - Switch policy state to On.
+  - Watch sign-in logs for failures with this policy for 2 hours.
+backout:
+  - Set CA-021 back to report-only.
+validation:
+  - Test admin on compliant Mac and Windows can open Entra, Intune and Google admin.
+  - Test admin on unmanaged VM is blocked with 53003.
+  - Break-glass sign-in test succeeds.
+outcome: >
+  Enforced. Three admins blocked next day because their Macs were not in scope of the Jamf-Intune compliance
+  integration (INC0010007). Scope fixed in 2 hours; policy stayed enforced.
+lessons: >
+  Report-only results showed the three admins as "not applied" because they had not signed in during the
+  window; check device compliance status for every admin directly instead of relying only on report-only data.
+related: [INC0010007, HELP-1018]

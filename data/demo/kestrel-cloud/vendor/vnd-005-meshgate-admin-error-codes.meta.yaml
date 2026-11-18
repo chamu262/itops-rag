@@ -1,0 +1,14 @@
+id: VND-005
+title: MeshGate VPN - administrator guide - error codes MG-1xx to MG-5xx
+doc_type: vendor
+system: meshgate
+owner: Workplace Network
+access: it-staff
+updated: 2026-10-29
+tags:
+- meshgate
+- vpn
+- error-codes
+- wireguard
+- posture
+- admin

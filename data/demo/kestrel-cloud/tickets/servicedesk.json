@@ -1,0 +1,219 @@
+{
+  "records": [
+    {
+      "number": "INC0010001",
+      "short_description": "Google Workspace SSO failing for all users after SAML certificate rotation",
+      "description": "From 06:40 UTC users in all offices receive a SAML error when signing in to Gmail, Calendar and Drive. Entra sign-in logs show successful authentication; Google rejects the assertion.",
+      "state": "Resolved",
+      "priority": "1 - Critical",
+      "category": "Identity",
+      "assignment_group": "Identity & Access",
+      "opened_at": "2026-03-09 06:52:00",
+      "resolved_at": "2026-03-09 08:05:00",
+      "close_code": "Solved (Work Around)",
+      "close_notes": "The Entra SAML signing certificate for the Google Workspace enterprise app was rotated under CHG-2026-0003 without uploading the new certificate to the Google SSO profile. Re-activated the previous certificate in Entra (change rolled back) at 07:58 UTC; sign-ins recovered. Rotation to be repeated with the corrected order: upload to Google first, then activate in Entra. Post-mortem PM-2026-01.",
+      "work_notes": [
+        "2026-03-09 06:58 Service Desk: 40+ calls, major incident declared.",
+        "2026-03-09 07:20 Identity & Access: Thumbprint in Google SSO profile does not match active Entra signing cert.",
+        "2026-03-09 07:58 Identity & Access: Previous cert set active in Entra. Test sign-in OK.",
+        "2026-03-09 08:05 Service Desk: Call volume back to normal. Resolving."
+      ]
+    },
+    {
+      "number": "INC0010002",
+      "short_description": "MeshGate MG-503 for all EU users after gateway upgrade",
+      "description": "After the MeshGate gateway upgrade window, EU users cannot connect. Client shows MG-503 Gateway unavailable. US gateways unaffected.",
+      "state": "Resolved",
+      "priority": "1 - Critical",
+      "category": "Network",
+      "assignment_group": "Workplace Network",
+      "opened_at": "2026-05-19 06:10:00",
+      "resolved_at": "2026-05-19 07:45:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "Gateway version 5.0 changed the default listen port behaviour and the new config template dropped the UDP 51820 listener on gw-eun-01 and gw-euw-01 (198.51.100.10, 198.51.100.11). Rolled gateways back to 4.9.3 per CHG-2026-0005 backout plan; clients reconnected. Upgrade to be re-planned with explicit listener config and a canary gateway. Post-mortem PM-2026-02.",
+      "work_notes": [
+        "2026-05-19 06:15 Workplace Network: Both EU gateways healthy on HTTPS admin but no WireGuard handshakes.",
+        "2026-05-19 06:50 Workplace Network: 'ss -lun' shows no UDP 51820 listener.",
+        "2026-05-19 07:30 Workplace Network: Rollback complete on both gateways.",
+        "2026-05-19 07:45 Service Desk: Users confirm connections."
+      ]
+    },
+    {
+      "number": "INC0010003",
+      "short_description": "Macs not receiving MDM commands - APNs certificate expired",
+      "description": "Jamf shows pending MDM commands piling up on all Macs and iPhones. Profiles, lock and wipe commands are not delivered. Started overnight.",
+      "state": "Resolved",
+      "priority": "1 - Critical",
+      "category": "Endpoint",
+      "assignment_group": "Endpoint Engineering",
+      "opened_at": "2025-11-27 08:30:00",
+      "resolved_at": "2025-11-27 13:10:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "The Apple Push Notification service (APNs) certificate used by Jamf Pro expired. It was renewed with the same Managed Apple Account in Apple's push certificates portal (renewing, not creating new, so devices did not need re-enrolment) and uploaded to Jamf Pro > Settings > Global > Push Certificates. Pending commands drained over ~2 hours. Renewal reminder had gone to a former team member's mailbox. Post-mortem PM-2026-03.",
+      "work_notes": [
+        "2025-11-27 08:45 Endpoint Engineering: Jamf banner: push certificate expired yesterday 23:59.",
+        "2025-11-27 10:20 Endpoint Engineering: Managed Apple Account owning the cert located after access recovery via shared vault.",
+        "2025-11-27 11:05 Endpoint Engineering: Renewed and uploaded. Test device received blank push.",
+        "2025-11-27 13:10 Endpoint Engineering: 96% of devices checked in; resolving."
+      ]
+    },
+    {
+      "number": "INC0010004",
+      "short_description": "Personal access token committed to public demo repository",
+      "description": "Automated secret scanning flagged a GitHub personal access token in a commit to a public repo of the Kestrel Cloud GitHub org.",
+      "state": "Resolved",
+      "priority": "2 - High",
+      "category": "Security",
+      "assignment_group": "Security Operations",
+      "opened_at": "2026-05-26 09:12:00",
+      "resolved_at": "2026-05-26 12:40:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "Token (ghp_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE1234) revoked 18 minutes after detection. Org audit log reviewed: no use of the token from outside known IP ranges. Commit history rewritten and cache purge requested. Push protection enabled org-wide. Details in PM-2026-04 (security only).",
+      "work_notes": [
+        "2026-05-26 09:12 Security Operations: Secret scanning alert received.",
+        "2026-05-26 09:30 Security Operations: Token owner contacted and token revoked.",
+        "2026-05-26 11:00 Security Operations: Audit log review complete, no suspicious use."
+      ]
+    },
+    {
+      "number": "INC0010005",
+      "short_description": "KC-Corp Wi-Fi authentication failing on Windows laptops in London",
+      "description": "Windows devices fail 802.1X on KC-Corp after morning RADIUS maintenance. Macs fine.",
+      "state": "Resolved",
+      "priority": "2 - High",
+      "category": "Network",
+      "assignment_group": "Workplace Network",
+      "opened_at": "2026-04-14 07:35:00",
+      "resolved_at": "2026-04-14 09:30:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "RADIUS server certificate renewed under CHG-2026-0004 was issued by a new intermediate CA. The Intune Wi-Fi profile for Windows trusted only the old intermediate. Added the new intermediate and root to the Intune trusted certificate profiles and updated the Wi-Fi profile's server trust list. Devices reconnected after policy sync (or wired/MeshGate sync for those offline).",
+      "work_notes": [
+        "2026-04-14 07:50 Workplace Network: RADIUS logs show TLS alert unknown_ca from Windows clients.",
+        "2026-04-14 08:40 Endpoint Engineering: Intune profiles updated and assigned.",
+        "2026-04-14 09:30 Workplace Network: Auth success rate back to 99%."
+      ]
+    },
+    {
+      "number": "INC0010006",
+      "short_description": "Autopilot enrolments failing with 0x80180014 for a batch of devices",
+      "description": "Lisbon office cannot enrol 4 of 6 new laptops. Error 0x80180014.",
+      "state": "Resolved",
+      "priority": "3 - Moderate",
+      "category": "Endpoint",
+      "assignment_group": "Endpoint Engineering",
+      "opened_at": "2026-06-15 09:40:00",
+      "resolved_at": "2026-06-15 15:10:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "Devices imported without group tag, so the Autopilot profile was not assigned and the personal-device enrolment restriction blocked them. Set group tag KC-STD, waited for profile assignment, reset devices. Reseller import template now includes the group tag column.",
+      "work_notes": [
+        "2026-06-15 10:10 Endpoint Engineering: Profile status 'Not assigned' on failing devices.",
+        "2026-06-15 15:10 Endpoint Engineering: All 6 enrolled."
+      ]
+    },
+    {
+      "number": "INC0010007",
+      "short_description": "Conditional Access blocking admins from Intune portal",
+      "description": "Several Endpoint Engineering admins get AADSTS53003 when opening the Intune admin center after the new CA policy went live.",
+      "state": "Resolved",
+      "priority": "2 - High",
+      "category": "Identity",
+      "assignment_group": "Identity & Access",
+      "opened_at": "2026-07-07 07:15:00",
+      "resolved_at": "2026-07-07 09:00:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "Policy 'CA-021 Admin portals require compliant device' (CHG-2026-0007) was enforced, and three admins were using Macs registered in Jamf but not yet sending compliance to Entra (device compliance partner integration not enabled for their smart group). Added the smart group to the Jamf/Intune compliance integration scope; devices reported compliant within 30 min. Break-glass accounts remained excluded and untouched.",
+      "work_notes": [
+        "2026-07-07 07:30 Identity & Access: Sign-in logs show device 'registered, not compliant'.",
+        "2026-07-07 08:20 Endpoint Engineering: Compliance integration scope fixed.",
+        "2026-07-07 09:00 Identity & Access: All three admins confirmed access."
+      ]
+    },
+    {
+      "number": "INC0010008",
+      "short_description": "Outbound mail from billing platform rejected after DMARC p=reject",
+      "description": "Customers report not receiving invoice emails sent from billing@kestrelcloud.example.",
+      "state": "Resolved",
+      "priority": "2 - High",
+      "category": "Email",
+      "assignment_group": "Collaboration Tools",
+      "opened_at": "2026-08-05 10:20:00",
+      "resolved_at": "2026-08-05 16:45:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "After DMARC moved to p=reject (CHG-2026-0008), the third-party billing platform was sending as kestrelcloud.example without DKIM alignment and its sending IP (203.0.113.45) was not in SPF. Added the vendor's include to SPF and published the vendor DKIM selector (billing1._domainkey). Verified aligned pass in DMARC aggregate report next day. Lesson: the DMARC report review missed a low-volume sender.",
+      "work_notes": [
+        "2026-08-05 11:00 Collaboration Tools: Bounce: 550 5.7.26 unauthenticated email ... DMARC policy reject.",
+        "2026-08-05 14:30 Collaboration Tools: DKIM selector published, test send passes.",
+        "2026-08-06 09:00 Collaboration Tools: Aggregate report shows aligned pass."
+      ]
+    },
+    {
+      "number": "INC0010009",
+      "short_description": "Jamf Pro web console slow after upgrade",
+      "description": "Jamf Pro admin console takes 30+ seconds to load computer records following the upgrade window.",
+      "state": "Resolved",
+      "priority": "3 - Moderate",
+      "category": "Endpoint",
+      "assignment_group": "Endpoint Engineering",
+      "opened_at": "2026-02-24 08:00:00",
+      "resolved_at": "2026-02-24 12:30:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "Post-upgrade database maintenance had not completed and an advanced search with 40 criteria was set to auto-refresh on the dashboard. Removed the search from the dashboard and let the vendor-side maintenance finish. Load times back to ~2 seconds.",
+      "work_notes": [
+        "2026-02-24 09:15 Endpoint Engineering: Vendor support case opened.",
+        "2026-02-24 12:30 Endpoint Engineering: Performance normal."
+      ]
+    },
+    {
+      "number": "INC0010010",
+      "short_description": "Windows 11 feature update causing VPN client crash",
+      "description": "After the Windows 11 feature update ring 1, MeshGate client crashes on launch on some devices.",
+      "state": "Resolved",
+      "priority": "3 - Moderate",
+      "category": "Endpoint",
+      "assignment_group": "Endpoint Engineering",
+      "opened_at": "2026-06-30 09:10:00",
+      "resolved_at": "2026-07-01 14:00:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "MeshGate client 4.7.x was incompatible with the new network stack in the feature update. Paused ring 2 of the feature update (CHG-2026-0006) and pushed MeshGate 4.8.2 as a required Win32 app to ring 1 devices. Ring 2 resumed once 4.8.2 was on 100% of the estate.",
+      "work_notes": [
+        "2026-06-30 09:40 Endpoint Engineering: 11 devices affected, all on MeshGate 4.7.4.",
+        "2026-06-30 11:00 Endpoint Engineering: Ring 2 paused.",
+        "2026-07-01 14:00 Endpoint Engineering: 4.8.2 deployed, crashes resolved."
+      ]
+    },
+    {
+      "number": "INC0010011",
+      "short_description": "Austin office internet degraded",
+      "description": "Austin office users report slow web and video calls. MeshGate connections drop intermittently.",
+      "state": "Resolved",
+      "priority": "3 - Moderate",
+      "category": "Network",
+      "assignment_group": "Workplace Network",
+      "opened_at": "2026-09-16 15:00:00",
+      "resolved_at": "2026-09-16 19:20:00",
+      "close_code": "Solved (Remotely)",
+      "close_notes": "Primary ISP circuit had packet loss upstream. Failed the office over to the secondary circuit by raising the primary's route cost on the edge firewall (10.60.0.1). ISP fixed a faulty line card; traffic moved back the next morning.",
+      "work_notes": [
+        "2026-09-16 15:30 Workplace Network: 8% loss to 192.0.2.1 via primary circuit.",
+        "2026-09-16 16:00 Workplace Network: Failover done, loss 0%."
+      ]
+    },
+    {
+      "number": "INC0010012",
+      "short_description": "Platform SSO pilot Macs prompting for password at every unlock",
+      "description": "Pilot users report Mac asks for Entra password at every screen unlock after a Company Portal update.",
+      "state": "Resolved",
+      "priority": "4 - Low",
+      "category": "Endpoint",
+      "assignment_group": "Endpoint Engineering",
+      "opened_at": "2026-10-08 08:20:00",
+      "resolved_at": "2026-10-09 10:00:00",
+      "close_code": "Solved (Permanently)",
+      "close_notes": "Company Portal update reset the SSO extension registration on 14 pilot Macs. Users re-registered via the 'Registration required' notification. Jamf now pins Company Portal updates to the pilot group one week before general release (part of CHG-2026-0010 follow-ups).",
+      "work_notes": [
+        "2026-10-08 09:00 Endpoint Engineering: app-sso platform -s shows registration missing.",
+        "2026-10-09 10:00 Endpoint Engineering: All 14 re-registered."
+      ]
+    }
+  ]
+}

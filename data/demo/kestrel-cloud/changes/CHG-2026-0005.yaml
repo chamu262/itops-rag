@@ -1,0 +1,35 @@
+id: CHG-2026-0005
+title: Upgrade MeshGate EU gateways to version 5.0
+system: meshgate
+owner: Workplace Network
+access: it-staff
+risk: high
+type: normal
+window_start: 2026-05-18T22:00:00Z
+window_end: 2026-05-19T00:00:00Z
+status: rolled_back
+summary: >
+  Upgrade MeshGate gateways gw-eun-01 (198.51.100.10) and gw-euw-01 (198.51.100.11) from 4.9.3 to 5.0 for the
+  new posture API and improved peer limits.
+impact: >
+  EU users disconnected for ~5 minutes per gateway during upgrade; clients fail over to the other gateway.
+plan:
+  - Snapshot both gateway VMs.
+  - Drain gw-euw-01 (set weight 0), upgrade, apply config template v5, set weight 100.
+  - Repeat for gw-eun-01.
+  - Verify handshakes with test clients from Stockholm and Lisbon.
+backout:
+  - Restore VM snapshots of both gateways (4.9.3).
+  - Re-apply config template v4.
+validation:
+  - Test client connects to each gateway individually.
+  - Peer count returns to pre-change level within 30 minutes of business start.
+  - No MG-503 reports to Service Desk.
+outcome: >
+  Upgrade appeared successful at night (admin UI healthy, test client connected via TCP 443 fallback). At
+  06:00 UTC EU users got MG-503 because the v5 config template did not define the UDP 51820 listener. Rolled
+  back via snapshots at 07:30 UTC (INC0010002).
+lessons: >
+  Test client must have TCP fallback disabled to validate UDP path. Upgrade one gateway and leave it in
+  service for a business day before the second. Diff config templates between major versions.
+related: [INC0010002, PM-2026-02]

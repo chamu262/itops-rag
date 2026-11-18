@@ -1,0 +1,32 @@
+id: CHG-2026-0009
+title: Decommission London print server prt01 and move to direct IPP queues
+system: network
+owner: Endpoint Engineering
+access: it-staff
+risk: low
+type: normal
+window_start: 2026-07-06T18:00:00Z
+window_end: 2026-07-06T20:00:00Z
+status: implemented
+summary: >
+  Retire the London print server prt01.lon.kestrelcloud.example (10.40.2.15). Macs and Windows devices print
+  directly to the MFPs using IPP Everywhere queues deployed by Jamf and Intune. Follow-me release moves to the
+  MFP vendor cloud release service.
+impact: >
+  London users need the new queues. Old queues stop working once the server is off.
+plan:
+  - Deploy Jamf policy "Printers - London v2" and Intune printer policy to London devices one week ahead.
+  - Communicate that old queues will stop on 2026-07-06.
+  - Shut down prt01, keep VM for 30 days.
+  - Remove DNS record and DHCP option for the print server.
+backout:
+  - Power on prt01 VM and restore DNS record.
+validation:
+  - Test print from Mac and Windows on each London floor.
+  - Follow-me release works with badge.
+outcome: >
+  Implemented. Some Macs kept the old queues alongside the new ones and users picked the dead queue
+  (HELP-1058); cleanup script added to the Jamf policy. VM deleted 2026-08-06.
+lessons: >
+  Include removal of old queues in the deployment policy, not as a later task.
+related: [HELP-1026, HELP-1058]

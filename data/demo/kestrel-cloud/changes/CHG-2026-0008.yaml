@@ -1,0 +1,30 @@
+id: CHG-2026-0008
+title: Move DMARC policy for kestrelcloud.example to p=reject
+system: email
+owner: Collaboration Tools
+access: it-staff
+risk: medium
+type: normal
+window_start: 2026-08-03T08:00:00Z
+window_end: 2026-08-03T09:00:00Z
+status: implemented
+summary: >
+  After 6 months at p=quarantine with aggregate report review, publish DMARC p=reject for
+  kestrelcloud.example to stop spoofing of the domain.
+impact: >
+  Any sender using the domain without SPF or DKIM alignment will have mail rejected by receivers.
+plan:
+  - Review last 30 days of DMARC aggregate reports; confirm all legitimate senders align.
+  - Update TXT record _dmarc.kestrelcloud.example to "v=DMARC1; p=reject; rua=mailto:dmarc-reports@kestrelcloud.example; pct=100".
+  - Monitor aggregate reports daily for 2 weeks.
+backout:
+  - Revert the DMARC record to p=quarantine (TTL 300 set the day before).
+validation:
+  - Google Workspace outbound mail shows dmarc=pass at a test external mailbox.
+  - No bounce reports from known senders (HR system, billing, marketing platform).
+outcome: >
+  Implemented. The low-volume billing platform sender was missed in the review and invoices bounced for one
+  day (INC0010008). Fixed by adding SPF include and DKIM selector; p=reject kept.
+lessons: >
+  Keep a sender inventory owned by Collaboration Tools; sort aggregate reports by source, not volume.
+related: [INC0010008]

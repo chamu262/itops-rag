@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IT Operations : Identity Architecture: Entra ID, Google Workspace Federation and App SSO Standard</title>
+        <link rel="stylesheet" href="styles/site.css" type="text/css" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="itops:id" content="CF-002">
+        <meta name="itops:doc_type" content="standard">
+        <meta name="itops:system" content="entra">
+        <meta name="itops:owner" content="Identity &amp; Access">
+        <meta name="itops:access" content="it-staff">
+        <meta name="itops:updated" content="2026-10-12">
+        <meta name="itops:tags" content="entra, identity, sso, saml, oidc, scim, gws, federation, architecture">
+    </head>
+
+    <body class="theme-default aui-theme-default">
+        <div id="page">
+            <div id="main" class="aui-page-panel">
+                <div id="main-header">
+                    <div id="breadcrumb-section">
+                        <ol id="breadcrumbs">
+                            <li class="first">
+                                <span><a href="index.html">IT Operations</a></span>
+                            </li>
+                            <li>
+                                <span><a href="Architecture_131081.html">Architecture</a></span>
+                            </li>
+                        </ol>
+                    </div>
+                    <h1 id="title-heading" class="pagetitle">
+                        <span id="title-text">
+                            IT Operations : Identity Architecture: Entra ID, Google Workspace Federation and App SSO Standard
+                        </span>
+                    </h1>
+                </div>
+
+                <div id="content" class="view">
+                    <div class="page-metadata">
+                        Created by <span class='author'> Identity &amp; Access</span>, last modified on Oct 12, 2026
+                    </div>
+                    <div id="main-content" class="wiki-content group">
+<h2 id="IdentityArchitecture-Overview">Overview</h2>
+<p>Microsoft Entra ID is Kestrel's single identity provider. Every person has one identity, <code>first.last@kestrelcloud.example</code>, created from the HR system and used for laptops, Google Workspace, MeshGate and SaaS applications. No application keeps its own password database for staff unless listed as an exception in the SaaS register.</p>
+<h2 id="IdentityArchitecture-Flow">Identity lifecycle</h2>
+<ol><li><strong>HR system</strong> is the source of truth. Inbound provisioning creates and updates Entra users hourly: department, office, manager, start and end dates.</li><li><strong>Entra ID</strong> holds users, dynamic groups (<code>SG-Office-*</code>, <code>SG-Dept-*</code>), authentication methods and Conditional Access.</li><li><strong>Google Workspace</strong> receives users and groups via Entra SCIM provisioning (every 40 minutes) and accepts SAML sign-in from Entra (profile <code>Entra-KC</code>, see VND-004).</li><li><strong>SaaS apps</strong> are connected using SAML 2.0 or OIDC, plus SCIM when the vendor supports it (CF-006).</li><li><strong>Devices</strong>: Macs use Platform SSO against Entra; Windows devices are Entra joined. Device compliance from Jamf and Intune is written to the Entra device object.</li></ol>
+<h2 id="IdentityArchitecture-GWS">Google Workspace federation</h2>
+<p>Google is a service provider only. Passwords are never synchronised to Google. Two super admin accounts in OU <code>/IT/SSO-Bypass</code> sign in to Google directly with hardware keys for recovery. The SAML signing certificate is the single point of failure for Google sign-in; rotation is a planned change with a runbook (RB-GWS-002).</p>
+<h2 id="IdentityArchitecture-Standard">App SSO onboarding standard</h2>
+<div class="table-wrap"><table class="confluenceTable"><tbody>
+<tr><th class="confluenceTh">Requirement</th><th class="confluenceTh">Standard</th></tr>
+<tr><td class="confluenceTd">Protocol</td><td class="confluenceTd">OIDC preferred for new apps; SAML 2.0 accepted. WS-Fed and password vaulting are not accepted.</td></tr>
+<tr><td class="confluenceTd">Signing</td><td class="confluenceTd">SHA-256; SAML response or assertion signed; certificate lifetime 3 years; notification email <code>it-identity@kestrelcloud.example</code></td></tr>
+<tr><td class="confluenceTd">NameID / subject</td><td class="confluenceTd">UPN (email format). Never employee number or object ID unless the vendor requires it.</td></tr>
+<tr><td class="confluenceTd">Assignment</td><td class="confluenceTd"><em>Assignment required</em> = Yes; access through group <code>SG-App-&lt;AppName&gt;</code>, never individual users</td></tr>
+<tr><td class="confluenceTd">Provisioning</td><td class="confluenceTd">SCIM 2.0 where available, with deprovisioning tested. Otherwise app must honour SSO-only login and be in the manual leaver list (RB-GEN-002).</td></tr>
+<tr><td class="confluenceTd">Local login</td><td class="confluenceTd">Disabled for all users except one vendor break-glass account stored in the Security Operations vault</td></tr>
+<tr><td class="confluenceTd">Conditional Access</td><td class="confluenceTd">Covered by the baseline policies (<code>CA-001</code> to <code>CA-040</code>); apps with customer data are in scope of <code>CA-020</code> compliant device</td></tr>
+<tr><td class="confluenceTd">Owner</td><td class="confluenceTd">A named business owner team and Identity &amp; Access as technical owner</td></tr>
+</tbody></table></div>
+<h2 id="IdentityArchitecture-Admin">Administrative access</h2>
+<ul><li>Admin roles are assigned through Privileged Identity Management (PIM) as eligible, with activation up to 8 hours and justification.</li><li>Admins use separate <code>adm-</code> accounts with FIDO2 keys.</li><li>Two emergency access accounts exist (procedure restricted to Security Operations).</li></ul>
+<h2 id="IdentityArchitecture-Related">Related</h2>
+<ul><li>CF-006 SaaS app onboarding checklist</li><li>VND-003 AADSTS error codes</li><li>RB-IDM-002 Conditional Access troubleshooting</li></ul>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" role="contentinfo">
+                <section class="footer-body">
+                    <p>Document generated by Confluence on Nov 14, 2026 16:42</p>
+                    <div id="footer-logo"><a href="http://www.atlassian.com/">Atlassian</a></div>
+                </section>
+            </div>
+        </div>
+    </body>
+</html>

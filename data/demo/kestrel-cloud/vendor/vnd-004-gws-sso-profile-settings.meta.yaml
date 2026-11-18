@@ -1,0 +1,14 @@
+id: VND-004
+title: Google Workspace - admin console SSO profile settings
+doc_type: vendor
+system: gws
+owner: Collaboration Tools
+access: it-staff
+updated: 2026-11-04
+tags:
+- gws
+- saml
+- sso
+- entra
+- federation
+- admin-console

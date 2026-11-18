@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IT Operations : Patching Policy and SLAs</title>
+        <link rel="stylesheet" href="styles/site.css" type="text/css" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="itops:id" content="CF-004">
+        <meta name="itops:doc_type" content="standard">
+        <meta name="itops:system" content="general">
+        <meta name="itops:owner" content="Endpoint Engineering">
+        <meta name="itops:access" content="it-staff">
+        <meta name="itops:updated" content="2026-09-15">
+        <meta name="itops:tags" content="patching, sla, macos, windows, vulnerability, update-rings">
+    </head>
+
+    <body class="theme-default aui-theme-default">
+        <div id="page">
+            <div id="main" class="aui-page-panel">
+                <div id="main-header">
+                    <div id="breadcrumb-section">
+                        <ol id="breadcrumbs">
+                            <li class="first">
+                                <span><a href="index.html">IT Operations</a></span>
+                            </li>
+                            <li>
+                                <span><a href="Standards-and-Policies_131074.html">Standards and Policies</a></span>
+                            </li>
+                        </ol>
+                    </div>
+                    <h1 id="title-heading" class="pagetitle">
+                        <span id="title-text">
+                            IT Operations : Patching Policy and SLAs
+                        </span>
+                    </h1>
+                </div>
+
+                <div id="content" class="view">
+                    <div class="page-metadata">
+                        Created by <span class='author'> Endpoint Engineering</span>, last modified on Sep 15, 2026
+                    </div>
+                    <div id="main-content" class="wiki-content group">
+<h2 id="PatchingPolicy-Scope">Scope</h2>
+<p>Operating systems and third-party applications on Kestrel laptops (Macs via Jamf Pro, Windows via Intune), meeting room devices and iPhones. Servers and cloud workloads follow the Platform SRE patching standard.</p>
+<h2 id="PatchingPolicy-SLA">Remediation SLAs</h2>
+<p>Measured from vendor release (or from public disclosure if no fix exists) to 95% of active devices patched.</p>
+<div class="table-wrap"><table class="confluenceTable"><tbody>
+<tr><th class="confluenceTh">Severity</th><th class="confluenceTh">Definition</th><th class="confluenceTh">SLA</th></tr>
+<tr><td class="confluenceTd">Critical - exploited</td><td class="confluenceTd">CVSS 9.0+ <em>or</em> on the CISA KEV list / actively exploited</td><td class="confluenceTd">72 hours</td></tr>
+<tr><td class="confluenceTd">Critical</td><td class="confluenceTd">CVSS 9.0 to 10.0</td><td class="confluenceTd">7 days</td></tr>
+<tr><td class="confluenceTd">High</td><td class="confluenceTd">CVSS 7.0 to 8.9</td><td class="confluenceTd">14 days</td></tr>
+<tr><td class="confluenceTd">Medium</td><td class="confluenceTd">CVSS 4.0 to 6.9</td><td class="confluenceTd">30 days</td></tr>
+<tr><td class="confluenceTd">Low</td><td class="confluenceTd">Below 4.0</td><td class="confluenceTd">90 days or next cycle</td></tr>
+</tbody></table></div>
+<h2 id="PatchingPolicy-macOS">macOS</h2>
+<ul><li>Minor and security updates: Jamf Managed Software Update plan, pilot group <code>SG-Mac-Pilot</code> on day 0, all Macs on day 3, install deadline day 14 (day 7 or sooner for exploited issues).</li><li>Rapid Security Responses / background security improvements: allowed immediately, no deferral.</li><li>Major upgrades: deferred up to 90 days with <code>forceDelayedMajorSoftwareUpdates</code>, then enforced in office waves with a 14-day deadline (RB-MAC-003).</li><li>Supported versions: current major and N-1. N-2 devices are non-compliant 30 days after the new major is enforced.</li></ul>
+<h2 id="PatchingPolicy-Windows">Windows</h2>
+<div class="table-wrap"><table class="confluenceTable"><tbody>
+<tr><th class="confluenceTh">Ring</th><th class="confluenceTh">Group</th><th class="confluenceTh">Quality update deferral</th><th class="confluenceTh">Deadline</th><th class="confluenceTh">Grace</th></tr>
+<tr><td class="confluenceTd">Ring 0 - IT</td><td class="confluenceTd"><code>SG-WUfB-Ring0</code></td><td class="confluenceTd">0 days</td><td class="confluenceTd">2 days</td><td class="confluenceTd">1 day</td></tr>
+<tr><td class="confluenceTd">Ring 1 - Pilot</td><td class="confluenceTd"><code>SG-WUfB-Ring1</code> (about 10%)</td><td class="confluenceTd">2 days</td><td class="confluenceTd">3 days</td><td class="confluenceTd">1 day</td></tr>
+<tr><td class="confluenceTd">Ring 2 - Broad</td><td class="confluenceTd">All other devices</td><td class="confluenceTd">7 days</td><td class="confluenceTd">3 days</td><td class="confluenceTd">2 days</td></tr>
+</tbody></table></div>
+<p>Feature updates are managed through an Intune feature update policy pinned to the approved Windows 11 version and moved after Endpoint Engineering sign-off. Expedited quality updates are used for exploited vulnerabilities.</p>
+<h2 id="PatchingPolicy-Apps">Third-party applications</h2>
+<ul><li>Mac: Jamf App Installers and patch management titles for browsers, Slack, Figma and developer tools. Browsers auto-update; a relaunch is forced after 48 hours.</li><li>Windows: Enterprise App Catalog apps and Win32 supersedence in Intune.</li><li>Apps without an update path for 30 days past SLA are removed or blocked after notice.</li></ul>
+<h2 id="PatchingPolicy-Exceptions">Exceptions</h2>
+<p>A device that cannot be patched (hardware tied to lab equipment, app incompatibility) needs a security exception ticket approved by Security Operations, with compensating controls (network isolation, no MeshGate) and an end date.</p>
+<h2 id="PatchingPolicy-Reporting">Reporting</h2>
+<p>Weekly patch compliance report from Defender vulnerability management and the Jamf/Intune dashboards, reviewed in the Monday IT operations meeting. Breach of SLA for a Critical issue is raised as a SEV3 (CF-005).</p>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" role="contentinfo">
+                <section class="footer-body">
+                    <p>Document generated by Confluence on Nov 14, 2026 16:42</p>
+                    <div id="footer-logo"><a href="http://www.atlassian.com/">Atlassian</a></div>
+                </section>
+            </div>
+        </div>
+    </body>
+</html>

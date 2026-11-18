@@ -1,0 +1,37 @@
+id: CHG-2026-0002
+title: Jamf Pro upgrade to latest release
+system: jamf
+owner: Endpoint Engineering
+access: it-staff
+risk: medium
+type: standard
+window_start: 2026-02-22T19:00:00Z
+window_end: 2026-02-22T21:00:00Z
+status: implemented
+summary: >
+  Upgrade the Jamf Pro cloud instance (jamf.kestrelcloud.example) to the current release during the
+  vendor-scheduled window to get DDM software update improvements and Platform SSO payload fixes.
+impact: >
+  Jamf Pro console and Self Service unavailable for up to 60 minutes. Device check-ins queue and catch up
+  afterwards. No end-user impact expected beyond Self Service.
+plan:
+  - Read vendor release notes and known issues; check compatibility of custom scripts and extension attributes.
+  - Export configuration profiles and policies list as backup (API export to the IT config repo).
+  - Confirm vendor maintenance slot and notify Service Desk.
+  - Pause any scheduled policy pushes during the window.
+  - After the vendor completes the upgrade, run smoke tests.
+backout:
+  - Vendor-side rollback to the previous release (requested via support case, vendor SLA 2 hours).
+  - Re-import exported profiles if any were altered.
+validation:
+  - Console login via Entra SSO works.
+  - Test Mac checks in, runs recon, and receives a test profile.
+  - Self Service loads and installs a test package.
+  - Inventory API reachable from the posture integration used by MeshGate.
+outcome: >
+  Upgrade completed by the vendor in 35 minutes. Console was slow for two days due to post-upgrade database
+  maintenance and an auto-refreshing advanced search (INC0010009).
+lessons: >
+  Remove heavy auto-refresh advanced searches from shared dashboards before upgrades. Ask vendor for expected
+  post-upgrade maintenance duration.
+related: [INC0010009]

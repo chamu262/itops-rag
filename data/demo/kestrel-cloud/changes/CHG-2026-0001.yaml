@@ -1,0 +1,38 @@
+id: CHG-2026-0001
+title: macOS 26 upgrade rollout - ring 1 (IT and early adopters)
+system: macos
+owner: Endpoint Engineering
+access: it-staff
+risk: medium
+type: normal
+window_start: 2026-01-12T08:00:00Z
+window_end: 2026-01-23T17:00:00Z
+status: implemented
+summary: >
+  Enforce the macOS 26 major upgrade on ring 1 (IT staff plus volunteer early adopters, ~60 Macs) using
+  Declarative Device Management software update enforcement from Jamf Pro, with a 7-day deferral and a
+  forced install deadline. Self Service upgrade has been optional since October 2025.
+impact: >
+  Each Mac restarts once (~40-60 minutes). Users can defer for up to 7 days. MeshGate client, security agent
+  and Company Portal must be on 26-compatible versions before the deadline.
+plan:
+  - Confirm compatible versions of MeshGate client (4.8.x), security agent and Company Portal are deployed to ring 1.
+  - Create smart group "macOS Upgrade - Ring 1" from static group of volunteers plus IT department.
+  - Create DDM software update enforcement in Jamf targeting macOS 26.2 with deadline 7 days after start.
+  - Send user comms (Slack-style post and email) with the deadline and how to defer.
+  - Monitor daily via advanced search "macOS < 26 in Ring 1" and Service Desk ticket tag "macos26".
+backout:
+  - Remove the DDM enforcement from the ring 1 smart group (does not downgrade already-upgraded Macs).
+  - For a broken Mac, reinstall the previous macOS from recovery and restore user data from Drive.
+validation:
+  - 95% of ring 1 on macOS 26.2 by deadline.
+  - FileVault escrow status valid on all upgraded Macs.
+  - MeshGate posture passing for upgraded Macs.
+  - No increase in Jamf check-in failures.
+outcome: >
+  58 of 61 Macs upgraded by deadline; 3 needed disk space cleanup first. Two users hit MeshGate MG-401 because
+  the posture policy minimum-OS list was not extended to 26.2 in time; fixed same day.
+lessons: >
+  Update the MeshGate posture allowed-OS list before each OS rollout, not after. Add a free-disk-space check
+  (25 GB) to the pre-flight extension attribute.
+related: [CHG-2026-0002, HELP-1011]

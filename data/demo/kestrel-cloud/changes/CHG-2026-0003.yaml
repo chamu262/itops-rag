@@ -1,0 +1,38 @@
+id: CHG-2026-0003
+title: Rotate Entra SAML signing certificate for Google Workspace
+system: gws
+owner: Identity & Access
+access: it-staff
+risk: high
+type: normal
+window_start: 2026-03-08T20:00:00Z
+window_end: 2026-03-08T21:00:00Z
+status: rolled_back
+summary: >
+  The SAML signing certificate on the Google Workspace enterprise application in Entra ID expires on
+  2026-03-31. Create a new certificate, make it active, and update the Google Workspace SSO profile.
+impact: >
+  If the certificate in Google does not match the active Entra signing certificate, nobody can sign in to
+  Gmail, Calendar or Drive. Existing Google sessions continue until they expire.
+plan:
+  - In Entra > Enterprise applications > Google Workspace > Single sign-on, create a new SAML signing certificate.
+  - Make the new certificate active.
+  - Download the certificate (Base64) and upload it to Google Admin console > Security > SSO with third-party IdP.
+  - Test sign-in with a test account in a private browser window.
+backout:
+  - Make the previous certificate active again in Entra (it remains valid until 2026-03-31).
+  - Confirm the Google SSO profile still holds the previous certificate.
+validation:
+  - Test account can sign in to Gmail via SSO.
+  - No spike in SAML errors in Entra sign-in logs.
+outcome: >
+  Step 2 (activate in Entra) was done, step 3 (upload to Google) was not completed because the implementer's
+  Google admin session required re-authentication through the same SSO and failed. Test sign-in at 20:40 used
+  a cached Google session and falsely passed. The next morning all new sign-ins failed (INC0010001).
+  Previous certificate re-activated in Entra at 07:58 UTC; change rolled back.
+lessons: >
+  Order matters: upload the new certificate to Google BEFORE activating it in Entra. Keep a Google super admin
+  break-glass account that does not use SSO, so the SSO profile can always be edited. Validate with a fresh
+  private window and check the certificate thumbprint in both places. The rotation was repeated successfully
+  as a standard change on 2026-09-13 with the corrected order.
+related: [INC0010001, PM-2026-01, HELP-1038, HELP-1039]

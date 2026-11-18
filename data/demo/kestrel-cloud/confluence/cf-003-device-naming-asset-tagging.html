@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IT Operations : Device Naming and Asset Tagging Standard</title>
+        <link rel="stylesheet" href="styles/site.css" type="text/css" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="itops:id" content="CF-003">
+        <meta name="itops:doc_type" content="standard">
+        <meta name="itops:system" content="general">
+        <meta name="itops:owner" content="Endpoint Engineering">
+        <meta name="itops:access" content="public">
+        <meta name="itops:updated" content="2026-03-02">
+        <meta name="itops:tags" content="naming, asset, cmdb, device, standard">
+    </head>
+
+    <body class="theme-default aui-theme-default">
+        <div id="page">
+            <div id="main" class="aui-page-panel">
+                <div id="main-header">
+                    <div id="breadcrumb-section">
+                        <ol id="breadcrumbs">
+                            <li class="first">
+                                <span><a href="index.html">IT Operations</a></span>
+                            </li>
+                            <li>
+                                <span><a href="Standards-and-Policies_131074.html">Standards and Policies</a></span>
+                            </li>
+                        </ol>
+                    </div>
+                    <h1 id="title-heading" class="pagetitle">
+                        <span id="title-text">
+                            IT Operations : Device Naming and Asset Tagging Standard
+                        </span>
+                    </h1>
+                </div>
+
+                <div id="content" class="view">
+                    <div class="page-metadata">
+                        Created by <span class='author'> Endpoint Engineering</span>, last modified on Mar 2, 2026
+                    </div>
+                    <div id="main-content" class="wiki-content group">
+<h2 id="DeviceNaming-Purpose">Purpose</h2>
+<p>One naming scheme for every device makes tickets, inventory and logs easy to match. Names are set automatically by Jamf and Intune; nobody should rename a device by hand.</p>
+<h2 id="DeviceNaming-Format">Name format</h2>
+<p><code>KC-&lt;SITE&gt;-&lt;TYPE&gt;-&lt;ASSET&gt;</code></p>
+<div class="table-wrap"><table class="confluenceTable"><tbody>
+<tr><th class="confluenceTh">Part</th><th class="confluenceTh">Values</th><th class="confluenceTh">Notes</th></tr>
+<tr><td class="confluenceTd">KC</td><td class="confluenceTd">Fixed</td><td class="confluenceTd">Company prefix</td></tr>
+<tr><td class="confluenceTd">SITE</td><td class="confluenceTd">STO, LON, AUS, LIS, REM</td><td class="confluenceTd">Office the person belongs to; REM for fully remote staff</td></tr>
+<tr><td class="confluenceTd">TYPE</td><td class="confluenceTd">MBP (MacBook Pro), MBA (MacBook Air), MAC (desktop Mac), WL (Windows laptop), WD (Windows desktop), IPH (iPhone), IPD (iPad), MTR (meeting room device), PRN (printer)</td><td class="confluenceTd">Two or three letters</td></tr>
+<tr><td class="confluenceTd">ASSET</td><td class="confluenceTd">Five digits, zero padded</td><td class="confluenceTd">From the asset tag, not the serial</td></tr>
+</tbody></table></div>
+<p>Examples: <code>KC-STO-MBP-04217</code>, <code>KC-LON-WL-03311</code>, <code>KC-AUS-MTR-00412</code>. Printers use floor and sequence instead of asset number, for example <code>KC-STO-PRN-301</code> (floor 3, first printer).</p>
+<div class="confluence-information-macro confluence-information-macro-note"><span class="aui-icon aui-icon-small aui-iconfont-info confluence-information-macro-icon"></span><div class="confluence-information-macro-body"><p>Windows names are limited to 15 characters by NetBIOS. <code>KC-LON-WL-03311</code> is exactly 15. Do not add suffixes.</p></div></div>
+<h2 id="DeviceNaming-Tags">Asset tags</h2>
+<ul><li>Every device gets a printed asset tag <code>KC-A-&lt;5 digits&gt;</code> on the bottom case before it is issued. Tag numbers are issued in sequence by the CMDB.</li><li>The asset number is entered in Jamf (<em>Asset Tag</em> field) or Intune (device category plus the extension attribute <code>assetTag</code>) at the time the serial is registered.</li><li>Reseller deliveries for remote staff: the reseller applies tags from a pre-allocated range.</li></ul>
+<h2 id="DeviceNaming-Automation">How names are applied</h2>
+<ul><li>Mac: Jamf policy <em>Set Computer Name</em> runs at enrolment and reads site from the user's office attribute and asset from the Asset Tag field.</li><li>Windows: Autopilot sets a temporary name <code>KCW-&lt;serial&gt;</code>; a remediation script renames after enrolment and the change applies at the next restart.</li><li>iPhone and iPad: device name set by Jamf on enrolment.</li></ul>
+<h2 id="DeviceNaming-Changes">When a device changes hands</h2>
+<p>The asset number stays with the device for its life. If the new user is in another office, the SITE part changes on re-enrolment. The CMDB keeps the history.</p>
+<h2 id="DeviceNaming-Where">Finding a device name</h2>
+<ul><li>Mac: Self Service &gt; Device info, or <code>scutil --get ComputerName</code></li><li>Windows: Settings &gt; System &gt; About, or <code>hostname</code></li><li>Label on the bottom of the device</li></ul>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" role="contentinfo">
+                <section class="footer-body">
+                    <p>Document generated by Confluence on Nov 14, 2026 16:42</p>
+                    <div id="footer-logo"><a href="http://www.atlassian.com/">Atlassian</a></div>
+                </section>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IT Operations : Endpoint Security Baseline (macOS and Windows)</title>
+        <link rel="stylesheet" href="styles/site.css" type="text/css" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="itops:id" content="CF-001">
+        <meta name="itops:doc_type" content="standard">
+        <meta name="itops:system" content="security">
+        <meta name="itops:owner" content="Security Operations">
+        <meta name="itops:access" content="it-staff">
+        <meta name="itops:updated" content="2026-08-30">
+        <meta name="itops:tags" content="endpoint, baseline, macos, windows, encryption, edr, compliance">
+    </head>
+
+    <body class="theme-default aui-theme-default">
+        <div id="page">
+            <div id="main" class="aui-page-panel">
+                <div id="main-header">
+                    <div id="breadcrumb-section">
+                        <ol id="breadcrumbs">
+                            <li class="first">
+                                <span><a href="index.html">IT Operations</a></span>
+                            </li>
+                            <li>
+                                <span><a href="Standards-and-Policies_131074.html">Standards and Policies</a></span>
+                            </li>
+                        </ol>
+                    </div>
+                    <h1 id="title-heading" class="pagetitle">
+                        <span id="title-text">
+                            IT Operations : Endpoint Security Baseline (macOS and Windows)
+                        </span>
+                    </h1>
+                </div>
+
+                <div id="content" class="view">
+                    <div class="page-metadata">
+                        Created by <span class='author'> Security Operations</span>, last modified on Aug 30, 2026
+                    </div>
+                    <div id="main-content" class="wiki-content group">
+<div class="confluence-information-macro confluence-information-macro-information"><span class="aui-icon aui-icon-small aui-iconfont-info confluence-information-macro-icon"></span><div class="confluence-information-macro-body"><p>This is the binding baseline for every Kestrel-owned laptop. Exceptions require a HELP ticket of type <strong>Security exception</strong> approved by Security Operations, with an end date of at most 90 days.</p></div></div>
+<h2 id="EndpointSecurityBaseline-Purpose">Purpose</h2>
+<p>Define the minimum security controls on company laptops and how they are enforced and measured. Jamf Pro enforces the macOS baseline and Microsoft Intune the Windows baseline. Compliance results feed Entra Conditional Access policy <code>CA-020-Require-Compliant-Device</code> and MeshGate posture checks (VND-005).</p>
+<h2 id="EndpointSecurityBaseline-Controls">Controls</h2>
+<div class="table-wrap"><table class="confluenceTable"><tbody>
+<tr><th class="confluenceTh">Control</th><th class="confluenceTh">macOS (Jamf)</th><th class="confluenceTh">Windows (Intune)</th><th class="confluenceTh">Compliance effect</th></tr>
+<tr><td class="confluenceTd">Disk encryption</td><td class="confluenceTd">FileVault on, PRK escrowed (profile <code>KC-FileVault-Escrow</code>)</td><td class="confluenceTd">BitLocker XTS-AES 256, TPM protector, key escrowed to Entra</td><td class="confluenceTd">Non-compliant immediately</td></tr>
+<tr><td class="confluenceTd">OS version</td><td class="confluenceTd">Current major or N-1; minor within patch SLA (CF-004)</td><td class="confluenceTd">Windows 11 23H2 or later, latest CU or N-1</td><td class="confluenceTd">Non-compliant after 3-day grace</td></tr>
+<tr><td class="confluenceTd">EDR</td><td class="confluenceTd">Microsoft Defender for Endpoint, onboarded and reporting</td><td class="confluenceTd">Microsoft Defender for Endpoint, onboarded, tamper protection on</td><td class="confluenceTd">Risk score above Medium = non-compliant</td></tr>
+<tr><td class="confluenceTd">Firewall</td><td class="confluenceTd">Application firewall on, stealth mode on</td><td class="confluenceTd">Windows Firewall on for all profiles</td><td class="confluenceTd">Non-compliant</td></tr>
+<tr><td class="confluenceTd">Screen lock</td><td class="confluenceTd">5 min idle, password required immediately</td><td class="confluenceTd">5 min idle (Windows Hello for Business)</td><td class="confluenceTd">Reported only</td></tr>
+<tr><td class="confluenceTd">Local admin</td><td class="confluenceTd">No standing admin; <em>Make Me Admin (30 min)</em> in Self Service, logged</td><td class="confluenceTd">No standing admin; LAPS for support; developer builds via EPM elevation</td><td class="confluenceTd">Reported only</td></tr>
+<tr><td class="confluenceTd">Gatekeeper / SmartScreen</td><td class="confluenceTd">Gatekeeper: App Store and identified developers; SIP on</td><td class="confluenceTd">SmartScreen and Smart App Control (evaluation) on</td><td class="confluenceTd">Non-compliant if off</td></tr>
+<tr><td class="confluenceTd">Secure boot</td><td class="confluenceTd">Full Security on Apple silicon</td><td class="confluenceTd">Secure Boot and TPM 2.0 required</td><td class="confluenceTd">Non-compliant</td></tr>
+<tr><td class="confluenceTd">USB storage</td><td class="confluenceTd">Read-only for removable media</td><td class="confluenceTd">Write blocked except approved encrypted devices</td><td class="confluenceTd">Reported only</td></tr>
+</tbody></table></div>
+<h2 id="EndpointSecurityBaseline-Accounts">Accounts and authentication</h2>
+<ul><li>macOS: local account created by Platform SSO at enrolment, password synchronised from Entra ID (RB-MAC-004). Managed admin <code>kcadmin</code> with password rotated by Jamf LAPS every 7 days and after each view.</li><li>Windows: Entra-joined only, Windows Hello for Business required. Windows LAPS rotates the built-in admin every 7 days.</li><li>MFA required for every sign-in to company apps; phishing-resistant methods required for admin roles (<code>CA-030-Admin-Phishing-Resistant</code>).</li></ul>
+<h2 id="EndpointSecurityBaseline-Measurement">Measurement</h2>
+<p>Endpoint Engineering publishes a weekly compliance dashboard. Targets: 98% of active devices compliant, 100% with escrowed recovery keys. Devices not checking in for 30 days are marked non-compliant and reviewed by the Service Desk.</p>
+<div class="code panel pdl" style="border-width: 1px;"><div class="codeContent panelContent pdl">
+<pre class="syntaxhighlighter-pre" data-syntaxhighlighter-params="brush: bash; gutter: false; theme: Confluence" data-theme="Confluence"># macOS spot check
+fdesetup status
+/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
+mdatp health --field healthy
+
+# Windows spot check (PowerShell)
+Get-BitLockerVolume -MountPoint C: | Select VolumeStatus, ProtectionStatus
+Get-MpComputerStatus | Select RealTimeProtectionEnabled, IsTamperProtected
+Confirm-SecureBootUEFI</pre>
+</div></div>
+<h2 id="EndpointSecurityBaseline-Related">Related</h2>
+<ul><li>CF-004 Patching Policy and SLAs</li><li>RB-MAC-002 FileVault key escrow</li><li>RB-WIN-002 Intune compliance</li><li>RB-SEC-001 Lost or stolen device</li></ul>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" role="contentinfo">
+                <section class="footer-body">
+                    <p>Document generated by Confluence on Nov 14, 2026 16:42</p>
+                    <div id="footer-logo"><a href="http://www.atlassian.com/">Atlassian</a></div>
+                </section>
+            </div>
+        </div>
+    </body>
+</html>

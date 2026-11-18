@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IT Operations : SaaS App Onboarding Checklist (SAML / SCIM)</title>
+        <link rel="stylesheet" href="styles/site.css" type="text/css" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="itops:id" content="CF-006">
+        <meta name="itops:doc_type" content="standard">
+        <meta name="itops:system" content="saas">
+        <meta name="itops:owner" content="Identity &amp; Access">
+        <meta name="itops:access" content="it-staff">
+        <meta name="itops:updated" content="2026-07-28">
+        <meta name="itops:tags" content="saas, onboarding, saml, scim, sso, security-review, checklist">
+    </head>
+
+    <body class="theme-default aui-theme-default">
+        <div id="page">
+            <div id="main" class="aui-page-panel">
+                <div id="main-header">
+                    <div id="breadcrumb-section">
+                        <ol id="breadcrumbs">
+                            <li class="first">
+                                <span><a href="index.html">IT Operations</a></span>
+                            </li>
+                            <li>
+                                <span><a href="Architecture_131081.html">Architecture</a></span>
+                            </li>
+                            <li>
+                                <span><a href="SaaS-Applications_131102.html">SaaS Applications</a></span>
+                            </li>
+                        </ol>
+                    </div>
+                    <h1 id="title-heading" class="pagetitle">
+                        <span id="title-text">
+                            IT Operations : SaaS App Onboarding Checklist (SAML / SCIM)
+                        </span>
+                    </h1>
+                </div>
+
+                <div id="content" class="view">
+                    <div class="page-metadata">
+                        Created by <span class='author'> Identity &amp; Access</span>, last modified on Jul 28, 2026
+                    </div>
+                    <div id="main-content" class="wiki-content group">
+<p>Use this checklist for every new SaaS application that will hold Kestrel data or need staff accounts. Create a HELP ticket of type <strong>SaaS onboarding</strong> and copy the checklist into it. Technical standard: CF-002.</p>
+<h2 id="SaaSOnboarding-Intake">1. Intake</h2>
+<ul class="inline-task-list">
+<li data-inline-task-id="1">Business owner team and cost centre named</li>
+<li data-inline-task-id="2">Data classification of data the app will hold (Public, Internal, Confidential, Restricted)</li>
+<li data-inline-task-id="3">Number of users and which groups</li>
+<li data-inline-task-id="4">Vendor security documentation received (SOC 2 Type II or ISO 27001, DPA, sub-processor list)</li>
+</ul>
+<h2 id="SaaSOnboarding-Security">2. Security review (Security Operations)</h2>
+<ul class="inline-task-list">
+<li data-inline-task-id="5">Vendor risk questionnaire completed; result Low or Medium, or accepted by the CISO</li>
+<li data-inline-task-id="6">Data residency acceptable (EU for Confidential customer data)</li>
+<li data-inline-task-id="7">Audit log export available for Confidential or Restricted apps</li>
+</ul>
+<h2 id="SaaSOnboarding-SSO">3. SSO configuration (Identity &amp; Access)</h2>
+<ul class="inline-task-list">
+<li data-inline-task-id="8">Enterprise app created in Entra from the gallery if available, named <code>&lt;App&gt; (KC)</code></li>
+<li data-inline-task-id="9">SAML: Identifier (Entity ID) and Reply URL (ACS) from the vendor; NameID = UPN; SHA-256; certificate notification email set</li>
+<li data-inline-task-id="10">OIDC: redirect URIs exact, no wildcards; client secret or certificate expiry recorded</li>
+<li data-inline-task-id="11"><em>Assignment required</em> = Yes, group <code>SG-App-&lt;App&gt;</code> created and assigned</li>
+<li data-inline-task-id="12">Local password login disabled in the app except one vendor break-glass account (credentials in the Security Operations vault)</li>
+<li data-inline-task-id="13">Test sign-in by IdP-initiated (My Apps) and SP-initiated flows</li>
+</ul>
+<div class="code panel pdl" style="border-width: 1px;"><div class="codeContent panelContent pdl">
+<pre class="syntaxhighlighter-pre" data-syntaxhighlighter-params="brush: powershell; gutter: false; theme: Confluence" data-theme="Confluence"># Find the enterprise app and its signing certificate expiry (Graph PowerShell)
+$sp = Get-MgServicePrincipal -Filter &quot;displayName eq &#x27;Acme Analytics (KC)&#x27;&quot;
+$sp.KeyCredentials | Select Type, Usage, EndDateTime</pre>
+</div></div>
+<h2 id="SaaSOnboarding-SCIM">4. Provisioning (SCIM)</h2>
+<ul class="inline-task-list">
+<li data-inline-task-id="14">SCIM endpoint and token from vendor; token expiry recorded in the SaaS register</li>
+<li data-inline-task-id="15">Attribute mapping: userName = UPN, active = accountEnabled, name and email</li>
+<li data-inline-task-id="16">Scope: <em>Sync only assigned users and groups</em></li>
+<li data-inline-task-id="17">Deprovisioning tested: removing a test user from the group deactivates them in the app within one cycle</li>
+<li data-inline-task-id="18">No SCIM support: app added to the manual leaver list used by RB-GEN-002 step 8</li>
+</ul>
+<h2 id="SaaSOnboarding-Go">5. Go-live</h2>
+<ul class="inline-task-list">
+<li data-inline-task-id="19">Conditional Access coverage checked with the What If tool</li>
+<li data-inline-task-id="20">App added to the SaaS register with owners, SSO type, SCIM yes/no, certificate and token expiry dates</li>
+<li data-inline-task-id="21">Users informed; app visible in My Apps; access request path in Self Service or the portal</li>
+</ul>
+<div class="confluence-information-macro confluence-information-macro-information"><span class="aui-icon aui-icon-small aui-iconfont-info confluence-information-macro-icon"></span><div class="confluence-information-macro-body"><p>Common failures during testing: <code>AADSTS50011</code> (reply URL mismatch), <code>AADSTS50105</code> (user not assigned), <code>AADSTS75011</code> (requested authentication context). See VND-003.</p></div></div>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" role="contentinfo">
+                <section class="footer-body">
+                    <p>Document generated by Confluence on Nov 14, 2026 16:42</p>
+                    <div id="footer-logo"><a href="http://www.atlassian.com/">Atlassian</a></div>
+                </section>
+            </div>
+        </div>
+    </body>
+</html>
