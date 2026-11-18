@@ -118,6 +118,7 @@ class Index:
             keyword_weight=settings.keyword_weight,
             vector_weight=settings.vector_weight,
             max_chunks_per_doc=settings.max_chunks_per_doc,
+            pool_chunks_per_doc=settings.pool_chunks_per_doc,
         )
 
     # ----- construction ---------------------------------------------------------------------------------------

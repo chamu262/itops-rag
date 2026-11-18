@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 (2026-11-18)
+
+- **The rerank candidate pool is back at 30, after being 20 in 0.2.0.** Tracing a wordier Autopilot question showed
+  the runbook dropping out of a 20-candidate pool once tickets were split into core and comment chunks. It is now a
+  regression question in the eval (h17). This costs about 90 ms per query.
+- `pool_chunks_per_doc` setting (off by default): capping chunks per document in the pool was measured and hurt.
+- `scripts/trace_query.py` shows a question's path through every stage with real scores.
+- `docs/how-it-works.md` is a visual guide to the database, chunking, embedding and retrieval.
+
 ## 0.2.0 (2026-11-18)
 
 Calibration round 2. Settings were chosen on a dev split of the golden set and reported on a held-out test split.

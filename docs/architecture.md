@@ -45,7 +45,7 @@ sequenceDiagram
     I->>V: top 30, same filters
     I->>I: Reciprocal Rank Fusion (keyword weight ×1.5 if the query has an error code or ticket key)
     I->>X: rerank the 30, add the doc-type prior for ordering → best k (1 hit per doc)
-    X->>G: best raw score; error codes in the question present in the hits?
+    X->>G: best raw score, and are the question's error codes in the hits?
     alt score < threshold
         G-->>U: "I don't know…" + owning team ($0)
     else enough context

@@ -43,8 +43,11 @@ class Settings(BaseSettings):
     # Retrieval
     mode: SearchMode = "hybrid_rerank"
     top_k: int = 4
-    candidates: int = 20
+    candidates: int = 30
     """How many chunks each retriever returns before fusion, and how many go to the reranker."""
+    pool_chunks_per_doc: int = 0
+    """Cap chunks per document in the rerank candidate pool (0 = off). Measured: capping hurt primary MRR, because
+    near-duplicate chunks give the reranker useful signal (docs/review.md, round 2b). Kept as a knob, off."""
     keyword_weight: float = 1.0
     vector_weight: float = 1.0
     max_chunks_per_doc: int = 1
