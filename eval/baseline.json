@@ -1,0 +1,58 @@
+{
+  "k": 4,
+  "questions": 44,
+  "modes": {
+    "vector": {
+      "mode": "vector",
+      "k": 4,
+      "hit_at_k": 0.974,
+      "recall_at_k": 0.728,
+      "mrr": 0.943,
+      "refusal_accuracy": null,
+      "false_refusals": 0,
+      "access_leaks": 0,
+      "ms_per_query": 3.2,
+      "misses": [
+        "q30"
+      ]
+    },
+    "keyword": {
+      "mode": "keyword",
+      "k": 4,
+      "hit_at_k": 0.974,
+      "recall_at_k": 0.712,
+      "mrr": 0.899,
+      "refusal_accuracy": null,
+      "false_refusals": 0,
+      "access_leaks": 0,
+      "ms_per_query": 0.2,
+      "misses": [
+        "q36"
+      ]
+    },
+    "hybrid": {
+      "mode": "hybrid",
+      "k": 4,
+      "hit_at_k": 1.0,
+      "recall_at_k": 0.769,
+      "mrr": 0.943,
+      "refusal_accuracy": null,
+      "false_refusals": 0,
+      "access_leaks": 0,
+      "ms_per_query": 2.3,
+      "misses": []
+    },
+    "hybrid_rerank": {
+      "mode": "hybrid_rerank",
+      "k": 4,
+      "hit_at_k": 1.0,
+      "recall_at_k": 0.765,
+      "mrr": 0.961,
+      "refusal_accuracy": 1.0,
+      "false_refusals": 0,
+      "access_leaks": 0,
+      "ms_per_query": 227.7,
+      "misses": []
+    }
+  }
+}
