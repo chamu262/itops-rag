@@ -21,6 +21,8 @@ def create_app(settings: Settings | None = None, index: Index | None = None) -> 
     from fastapi.responses import HTMLResponse
     from pydantic import BaseModel, Field
 
+    from itops_rag import __version__
+
     settings = settings or Settings()
     state: dict[str, Index] = {}
     init_lock = threading.Lock()
@@ -51,7 +53,7 @@ def create_app(settings: Settings | None = None, index: Index | None = None) -> 
         input_text: str = Field(default="", max_length=20000)
         dry_run: bool = False
 
-    app = FastAPI(title="itops-rag", version="0.1.0", docs_url="/api/docs")
+    app = FastAPI(title="itops-rag", version=__version__, docs_url="/api/docs")
     page = (resources.files("itops_rag.interfaces") / "static" / "index.html").read_text(encoding="utf-8")
 
     @app.get("/", response_class=HTMLResponse)

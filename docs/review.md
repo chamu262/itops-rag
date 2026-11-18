@@ -36,11 +36,40 @@ unanswerables). "Primary" means the single document that should answer the quest
 | Other rerankers: ms-marco-L12, jina tiny/turbo, bge-reranker-base | L12 and jina-turbo were slightly better on hard questions at 2× latency. bge-base was 7× slower and worse. | No: kept ms-marco-L6 |
 | Candidate pool 20/30/50, RRF k 20/60, FTS5 column weights, contextual chunk headers, 500 or 1200-char chunks, a synonym glossary | Neutral, mixed or worse | No |
 
+## Round 2: chunking, embedding and retrieval calibration
+
+**Method.** The golden set was split into dev (45 questions) and held-out test (20), stratified by kind. Each
+variant got its own index build (`scripts/calibrate.py`) and was scored on both splits. Decisions used dev only;
+test is reported to show whether a change holds up on questions it wasn't tuned on. n is small: one question moves
+dev by about 0.03 and test by about 0.06.
+
+| Variant | Chunks | Dev primary hit | Dev primary MRR | Dev refusal | Test primary hit | Test primary MRR | Test refusal | ms/query | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| Round-1 settings | 657 | 0.97 | 0.84 | 0.98 | 1.00 | 0.86 | 0.95 | 248 | baseline |
+| + product gate | 657 | 0.97 | 0.84 | **1.00** | 1.00 | 0.86 | **1.00** | 244 | **kept** |
+| + ticket comments in their own chunks | 696 | 0.97 | 0.84 | 0.98 | 1.00 | 0.86 | 0.95 | 242 | **kept** (neutral; cleaner ticket context) |
+| + candidate pool 20 (was 30) | 657 | 0.97 | 0.84 | 0.98 | 1.00 | 0.87 | 0.95 | **159** | **kept** |
+| Table rows as chunks | 759 | 1.00 | 0.85 | 0.98 | 0.94 | 0.84 | 0.95 | 237 | opt-in only: +1 dev, −1 test |
+| Merge sections < 300 chars | 416 | 0.97 | 0.83 | 0.96 | 0.94 | 0.81 | 0.95 | 258 | rejected |
+| Merge sections < 500 chars | 405 | 0.97 | 0.82 | 0.96 | 0.94 | 0.84 | 0.95 | 264 | rejected |
+| **Final** (gate + ticket split + pool 20) | 696 | 0.97 | 0.84 | **1.00** | **1.00** | **0.86** | **1.00** | **170** | **shipped** |
+| Final + ms-marco-L12 reranker | 696 | 0.97 | 0.80 | 1.00 | 1.00 | 0.87 | 1.00 | 367 | rejected |
+| Final + jina-reranker-v1-turbo | 696 | 0.97 | 0.86 | 0.96 | 1.00 | 0.92 | 1.00 | 223 | follow-up: needs its own refusal threshold |
+
+Also shipped in this round, because they fix correctness rather than tune a number:
+- **System names are normalised at ingest.** The demo tickets used ~30 spellings, such as "Entra ID" vs "entra" or
+  "Intune / Autopilot"; there are now 13 canonical names, so `--system` filters work.
+- **Hyphenated words are searchable by their parts.** "On call" now finds "on-call". Error codes such as MG-401 stay
+  whole tokens. This is what let the table-row variant answer "who is on call for Jamf?" at all.
+- **PDF sections come from font sizes**, for example "MG-4xx authentication (p. 1)", instead of "Page 1".
+- **doc2query enrichment** is built and cached per chunk content, but off by default. It needs an API key, so it
+  hasn't been measured yet.
+
 ## Still open
 
-- One hard question ("Who is on call for Jamf problems?") misses its escalation-matrix table. Splitting tables by
-  row is untested.
-- Near-miss unanswerables (another vendor's SAML rotation, a Chromebook in Intune) score as high as real questions.
-  Only the model's "I don't know" catches them. An answer-level eval (`itops-rag eval --llm`) needs an API key and
-  hasn't been run yet.
+- One hard question ("Who is on call for Jamf problems?") still misses its escalation-matrix row by default. Table
+  rows fix it but cost a held-out question, so they are opt-in.
+- Near-miss unanswerables that name no product or error code would still score like real questions. The product
+  and code checks catch the ones in the golden set. An answer-level eval (`itops-rag eval --llm`) needs an API key and
+  hasn't been run yet. The same goes for doc2query and query rewriting.
 - Triage could return structured JSON (`output_config.format`) instead of fixed text lines.

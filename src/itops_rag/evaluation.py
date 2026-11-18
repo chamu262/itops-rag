@@ -44,9 +44,11 @@ class GoldenItem:
     role: str = "it-staff"
     prompt: str = "qa"
     tags: list[str] = field(default_factory=list)
+    split: str = "dev"
+    """``dev`` questions are for tuning; ``test`` questions are only reported, so tuning can't overfit them."""
 
 
-def load_golden(path: Path) -> list[GoldenItem]:
+def load_golden(path: Path, split: str = "all") -> list[GoldenItem]:
     items = []
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip() or line.lstrip().startswith("#"):
@@ -56,6 +58,8 @@ def load_golden(path: Path) -> list[GoldenItem]:
             items.append(GoldenItem(**d))
         except TypeError as e:
             raise ValueError(f"{path}:{n}: {e}") from None
+    if split != "all":
+        items = [i for i in items if i.split == split]
     ids = [i.id for i in items]
     if len(ids) != len(set(ids)):
         raise ValueError(f"{path}: duplicate question ids")
@@ -140,7 +144,11 @@ def evaluate_retrieval(
             tickets += sum(1 for h in hits if h.chunk.meta.get("doc_type") == "ticket")
             returned += len(hits)
             refused = (
-                gate(index.expand(hits), index.settings, item.question) is not None
+                (
+                    index.precheck(item.question, item.role)
+                    or gate(index.expand(hits), index.settings, item.question)
+                )
+                is not None
                 if mode == "hybrid_rerank"
                 else None
             )

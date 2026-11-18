@@ -95,3 +95,13 @@ def test_demo_corpus_loads_cleanly() -> None:
     assert {"runbook", "kb", "ticket", "change", "postmortem"} <= types
     assert len(docs) > 100
     assert all(d.access in {"public", "it-staff", "security"} for d in docs)
+
+
+@pytest.mark.skipif(not DEMO.exists(), reason="demo corpus not present")
+def test_pdf_headings_come_from_font_sizes() -> None:
+    from itops_rag.core.chunking import chunk_document
+    from itops_rag.loaders.pdf import load_pdf
+
+    (doc,) = load_pdf(DEMO / "vendor" / "vnd-005-meshgate-admin-error-codes.pdf", DEMO)
+    headings = {c.heading for c in chunk_document(doc)}
+    assert any(h.startswith("MG-4xx") and h.endswith("(p. 1)") for h in headings)

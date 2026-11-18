@@ -86,6 +86,14 @@ _STOP = frozenset(
     ]
 )
 _QUERY_TOKEN = re.compile(r"[\w][\w\-]*", re.UNICODE)
+# Words joined by hyphens ("on-call", "re-enrol") are single FTS tokens because codes like MG-401 must stay whole.
+# Their parts are indexed (and searched) too, so "on call" still finds "on-call". Codes with digits are untouched.
+_HYPHEN_WORD = re.compile(r"\b[^\W\d_]+(?:-[^\W\d_]+)+\b")
+
+
+def hyphen_parts(text: str) -> str:
+    """``"L2 on-call service"`` -> ``"on call"`` (parts of letter-only hyphenated words, space-separated)."""
+    return " ".join(part for m in _HYPHEN_WORD.finditer(text) for part in m.group(0).split("-"))
 
 
 def fts_query(text: str) -> str:
@@ -97,8 +105,10 @@ def fts_query(text: str) -> str:
     terms: list[str] = []
     for tok in _QUERY_TOKEN.findall(text.lower()):
         tok = tok.strip("-_")
-        if tok and tok not in _STOP and tok not in terms:
-            terms.append(tok)
+        candidates = [tok, *(tok.split("-") if _HYPHEN_WORD.fullmatch(tok) else [])]
+        for t in candidates:
+            if t and t not in _STOP and t not in terms:
+                terms.append(t)
     return " OR ".join(f'"{t}"' for t in terms)
 
 
@@ -116,6 +126,7 @@ class DocStore:
         self.conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS manifest (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS question_cache (key TEXT PRIMARY KEY, questions TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY, title TEXT, doc_type TEXT, system TEXT, owner TEXT, access TEXT,
                 updated TEXT, tags TEXT, source TEXT, content_hash TEXT, text TEXT, extra TEXT
@@ -178,9 +189,11 @@ class DocStore:
                 (c.id, c.doc_id, c.ordinal, c.heading, c.text, doc.access, doc.doc_type, doc.system),
             )
             rowid = int(cur.lastrowid or 0)
-            self.conn.execute(
-                "INSERT INTO chunks_fts(rowid, embed_text) VALUES (?, ?)", (rowid, c.embed_text)
-            )
+            fts_text = c.embed_text
+            extra = hyphen_parts(fts_text)
+            if extra:
+                fts_text += "\n" + extra
+            self.conn.execute("INSERT INTO chunks_fts(rowid, embed_text) VALUES (?, ?)", (rowid, fts_text))
             rowids.append(rowid)
         return rowids
 
@@ -316,6 +329,13 @@ class DocStore:
             "SELECT text FROM chunks WHERE doc_id = ? AND heading = ? ORDER BY ordinal", (doc_id, heading)
         ).fetchall()
         return [str(r[0]) for r in rows]
+
+    def cached_questions(self, key: str) -> list[str] | None:
+        row = self.conn.execute("SELECT questions FROM question_cache WHERE key = ?", (key,)).fetchone()
+        return None if row is None else list(json.loads(row[0]))
+
+    def cache_questions(self, key: str, questions: list[str]) -> None:
+        self.conn.execute("INSERT OR REPLACE INTO question_cache VALUES (?, ?)", (key, json.dumps(questions)))
 
     def chunk_rows(self, doc_id: str) -> list[tuple[str, int]]:
         """``(chunk_id, rowid)`` for every chunk of a document."""

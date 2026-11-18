@@ -34,6 +34,9 @@ these loaders read, so the public engine has no credentials code in it.
 | One long doc crowds out others | `ITOPS_RAG_MAX_CHUNKS_PER_DOC` (default 1) |
 | Tickets crowd out runbooks (or the reverse) | `ITOPS_RAG_DOC_TYPE_BOOST` (JSON, default +2 for non-ticket types), or `doc_type_boost` in a template |
 | Answers miss steps from long runbooks | `ITOPS_RAG_CONTEXT_CHAR_BUDGET` (default 24000) and `ITOPS_RAG_EXPAND_WHOLE_DOC_CHARS` (default 4000) |
+| Tables (rotas, matrices) never match | `ITOPS_RAG_TABLE_ROWS=true` (each row its own chunk); measure with `itops-rag eval --split dev` |
+| Paraphrased questions miss | `ITOPS_RAG_DOC2QUERY=true` (Haiku writes questions per chunk at ingest, cached; a few cents per 100 docs) |
+| Refuses questions about a product you do document | It's on the product list but no visible doc mentions it: check access tags, or `ITOPS_RAG_PRODUCT_GATE=false` |
 | Error-code lookups miss | Check `itops-rag search --mode keyword "<code>"`; codes need to be in the text, not only in images |
 | Answers too long or short | Edit the template's `output` block; effort barely changes length |
 | Cost creeping up | `ITOPS_RAG_EFFORT=low`, move templates to `tier: fast`, or point agents at `get_context` over MCP |

@@ -5,6 +5,7 @@ description: Classify a new help desk ticket (category, priority, team) and poin
 tier: fast
 top_k: 6
 doc_types: [ticket, kb, runbook, standard, oncall]
+doc_type_boost: {ticket: 2.0}  # triage wants similar tickets as much as KB articles
 needs_input: true
 input_label: ticket
 task: |

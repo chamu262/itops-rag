@@ -158,26 +158,37 @@ KB article or standard), not just any related ticket. Reproduce with `itops-rag 
 
 | Mode | hit@4 | MRR | primary hit@4 | primary MRR | recall@4 | ticket share | refusal accuracy | access leaks |
 |---|---|---|---|---|---|---|---|---|
-| vector | 0.94 | 0.84 | 0.93 | 0.77 | 0.70 | 0.17 | – | 0 |
-| keyword (BM25) | 0.96 | 0.80 | 0.89 | 0.72 | 0.70 | 0.18 | – | 0 |
-| hybrid (RRF) | 0.98 | 0.86 | 0.93 | 0.75 | 0.74 | 0.21 | – | 0 |
-| **hybrid + rerank** | **0.98** | **0.91** | **0.98** | **0.85** | **0.75** | **0.10** | **0.95** | **0** |
+| vector | 0.93 | 0.82 | 0.91 | 0.74 | 0.68 | 0.17 | – | 0 |
+| keyword (BM25) | 0.96 | 0.79 | 0.85 | 0.70 | 0.69 | 0.20 | – | 0 |
+| hybrid (RRF) | 0.94 | 0.84 | 0.89 | 0.74 | 0.70 | 0.20 | – | 0 |
+| **hybrid + rerank** | **0.98** | **0.90** | **0.98** | **0.85** | **0.74** | **0.11** | **1.00** | **0** |
 
-What moved the numbers (the [review](docs/review.md) has the experiments, including the ones that didn't help):
+What moved the numbers, over two calibration rounds (the [review](docs/review.md) has every experiment, including
+the ones that didn't help). Round 2 used a **dev/test split**: settings were chosen on 45 dev questions, and the 20
+held-out test questions were only reported (test: primary hit 1.00, primary MRR 0.86, refusal accuracy 1.00).
 
 - **Doc-type prior and one hit per document.** In this corpus 82 of 145 documents are tickets, and they used to
   crowd runbooks out of the top 4. Adding +2 to the rerank score of authoritative doc types (for ordering only)
   raised primary hit@4 from 0.93 to 0.98 and primary MRR from 0.80 to 0.85.
-- **Hybrid beats either half.** Vector search misses error-code questions and keyword search misses paraphrases.
-- **The free gate refuses 8 of 11 unanswerable questions**, including unknown error codes (the question names a code
-  no retrieved document mentions). The 3 near-misses it lets through score as high as real questions, so Claude's
-  own "I don't know" rule is the second line of defence.
-- **Kept as is, after measuring alternatives:** the embedding model (bge-small, arctic-embed, nomic and bge-base were
-  no better after reranking) and the reranker (bge-reranker-base was slower and worse; ms-marco-L12 was twice the
-  latency).
+- **Free refusals now catch all 11 unanswerable questions**, with no false refusals. They come from three checks
+  that cost nothing: a rerank-score threshold, error codes no retrieved document mentions (MG-777), and IT products
+  no visible document mentions (Okta, Chromebook, Linux).
+- **The candidate pool was cut from 30 to 20** with no quality change: reranking dropped from about 235 to about 150 ms
+  per query.
+- **Hybrid plus rerank beats either half.** Vector search misses error-code questions, and keyword search misses
+  paraphrases. (Without the reranker, hybrid alone is now slightly weaker than vector alone on primary hit, because
+  ticket comments are their own chunks. The default path always reranks.)
+- **Kept as is, after measuring alternatives:**
+  - the embedding model: bge-small, arctic-embed, nomic and bge-base were no better after reranking;
+  - the reranker: ms-marco-L12 was worse on dev at 2× latency, and bge-reranker-base was slower and worse;
+  - chunking: merging small sections, and table rows as chunks (an opt-in setting), were mixed or didn't hold up on
+    held-out questions.
+- **Built, waiting on an API key to measure:** doc2query enrichment (`ITOPS_RAG_DOC2QUERY=true`, cached Haiku
+  questions per chunk), query rewriting, and the answer-level eval.
 
 Caveat: the questions were written knowing the corpus. Treat these as regression numbers, not a benchmark. CI fails
-if primary hit, MRR or refusal accuracy drop (see `eval-gate` in the workflow).
+if primary hit, MRR or refusal accuracy drop (see `eval-gate` in the workflow). Re-run the experiments with
+`python scripts/calibrate.py`.
 
 ## Safety and cost controls
 
@@ -188,7 +199,7 @@ if primary hit, MRR or refusal accuracy drop (see `eval-gate` in the workflow).
 | Retrieved text is data | Chunks are fenced in `<context>`, tag-like text is neutralised, injection patterns are flagged `suspicious="true"`, and the system prompt says to ignore and report them. Tested with planted attacks in `data/demo/kestrel-cloud/adversarial/`. |
 | Redaction at ingest | AWS, GitHub, Slack, Anthropic, Azure and Google keys, `sk-`/`pk-` keys, JWTs, Bearer/Basic auth headers, private keys (even truncated ones), `name = value` secrets (`DB_PASSWORD`, `aws_secret_access_key`, quoted values), emails and phone numbers are masked before embedding, plus IPs in tickets. People fields are dropped from ticket exports. A test ingests the adversarial fixtures and asserts that no planted secret survives. |
 | Access tags | `public` < `it-staff` < `security` per document, enforced inside both the keyword and the vector query. Documents with no tag default to `it-staff`, not `public`. The web UI is `public` unless a proxy-verified role header says otherwise. |
-| Cost | Embeddings, search, rerank, refusals and eval are local and free. Haiku 5.5 runs the cheap steps (triage, policy checks, the faithfulness check, under $0.001), and every call is logged with its cost against a monthly budget cap that blocks calls. Unknown or fallback models are charged at the highest listed price, so the cap errs on the safe side. Prompt caching is wired but rarely pays here: the system prompt (~330 tokens) is under the 512-token minimum, and every question has different context. |
+| Cost | Embeddings, search, rerank, refusals (score, error-code and product checks) and eval are local and free. Haiku 5.5 runs the cheap steps (triage, policy checks, the faithfulness check, under $0.001), and every call is logged with its cost against a monthly budget cap that blocks calls. Unknown or fallback models are charged at the highest listed price, so the cap errs on the safe side. Prompt caching is wired but rarely pays here: the system prompt (~330 tokens) is under the 512-token minimum, and every question has different context. |
 | Model safety | Server-side fallbacks (`fallbacks: "default"`) are on for Opus, so a safety-classifier decline is retried in the same call. Turn it off with `ITOPS_RAG_SERVER_FALLBACKS=false`. |
 
 Known limits: regexes can't find personal names in free text (loaders drop known people fields instead), and a
@@ -216,7 +227,7 @@ indexed content as untrusted.
 
 ```bash
 pip install -e ".[all]" --group dev
-pytest                       # 76 tests, offline
+pytest                       # 86 tests, offline
 ruff check . && ruff format --check . && mypy
 itops-rag eval --baseline eval/baseline.json
 ```

@@ -92,7 +92,7 @@ are in [review.md](review.md).
 5. **Small to big.** Small, heading-aligned chunks are good for matching, but the model needs the whole procedure.
    Each hit is expanded to its section, or the whole document when it is short, within a fixed budget.
 6. **Refuse before the model, not only in the prompt.** The prompt still says "I don't know", but the gate stops
-   thin context and unknown error codes from costing anything, and it makes refusals testable offline.
+   thin context, unknown error codes and products no document mentions from costing anything, and it makes refusals testable offline.
 7. **Redact at ingest, not at answer time.** If a secret never reaches the index, it can't leak through any
    interface, including `search_kb` over MCP.
 8. **Role is set by the deployment, not the caller.** The web UI accepts a role only from a proxy holding a shared
