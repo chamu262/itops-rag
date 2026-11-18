@@ -226,6 +226,7 @@ def prompts_show(prompt_id: str) -> None:
 @app.command("eval")
 def eval_cmd(
     golden: Annotated[Path, typer.Option(help="Golden set (JSONL).")] = Path("eval/golden.jsonl"),
+    split: Annotated[str, typer.Option(help="dev | test | all (tune on dev, report test).")] = "all",
     k: Annotated[int, typer.Option("-k")] = 4,
     baseline: Annotated[
         Path | None, typer.Option(help="Fail if metrics drop below this baseline JSON.")
@@ -245,7 +246,7 @@ def eval_cmd(
         markdown_table,
     )
 
-    items = load_golden(golden)
+    items = load_golden(golden, split)
     s = _settings(index)
     with _open(s) as ix:
         results = evaluate_retrieval(ix, items, k=k)
