@@ -51,6 +51,8 @@ class PromptTemplate:
     needs_input: bool = False
     """True when the template needs a pasted text (a ticket, a change plan) besides the question."""
     input_label: str = "input"
+    doc_type_boost: dict[str, float] | None = None
+    """Per-template overrides of ``Settings.doc_type_boost``."""
     pack: str = ""
     examples: list[str] = field(default_factory=list)
 

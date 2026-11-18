@@ -14,6 +14,7 @@ from itops_rag.config import Settings
 from itops_rag.core.context import build_context, extract_citations
 from itops_rag.core.costs import CostLedger, cost_usd
 from itops_rag.core.models import Answer, Hit, Usage
+from itops_rag.core.retriever import code_tokens
 from itops_rag.prompts.registry import SYSTEM_PROMPT, PromptTemplate
 
 log = logging.getLogger(__name__)
@@ -31,14 +32,20 @@ class MessagesClient(Protocol):
     def messages(self) -> Any: ...
 
 
-def gate(hits: Sequence[Hit], settings: Settings) -> str | None:
-    """Return a refusal reason when retrieval is too weak to answer from, else None."""
+def gate(hits: Sequence[Hit], settings: Settings, question: str = "") -> str | None:
+    """Return a refusal reason when retrieval is too weak to answer from, else None. Costs nothing."""
     if not hits:
         return "no documents matched this question for your access level"
-    best = hits[0]
-    if best.rerank_score is not None:
-        if best.rerank_score < settings.min_rerank_score:
-            return f"best match scored {best.rerank_score:.2f}, below the relevance threshold {settings.min_rerank_score}"
+    codes = code_tokens(question)
+    if codes:
+        haystack = " ".join(f"{h.chunk.meta.get('title', '')} {h.chunk.text}" for h in hits).lower()
+        if not any(code in haystack for code in codes):
+            return f"none of the retrieved documents mention {', '.join(sorted(codes)).upper()}"
+    reranked = [h.rerank_score for h in hits if h.rerank_score is not None]
+    if reranked:
+        best_score = max(reranked)  # raw cross-encoder score; doc-type boosts only affect ordering
+        if best_score < settings.min_rerank_score:
+            return f"best match scored {best_score:.2f}, below the relevance threshold {settings.min_rerank_score}"
         return None
     # Without a reranker, use the best vector similarity among the hits. A keyword match alone is not enough:
     # any shared word produces one, so it would let almost everything through.
@@ -145,7 +152,7 @@ class Generator:
         audience: str = "the IT operations team",
         dry_run: bool = False,
     ) -> Answer:
-        reason = gate(hits, self.settings)
+        reason = gate(hits, self.settings, question)
         if reason:
             return Answer(
                 question=question,

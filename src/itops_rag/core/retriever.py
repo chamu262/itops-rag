@@ -20,7 +20,7 @@ from itops_rag.stores.docstore import DocStore
 from itops_rag.stores.vectors import VectorStore
 
 RRF_K = 60
-_CODE_LIKE = re.compile(r"\b(?:[A-Z]{2,}[-_]?\d{2,}|0x[0-9a-fA-F]{6,}|[A-Z]+-\d+)\b")
+CODE_LIKE = re.compile(r"\b(?:[A-Z]{2,}[-_]?\d{2,}|0x[0-9a-fA-F]{6,}|[A-Z]+-\d+)\b")
 
 
 def rrf(
@@ -37,7 +37,12 @@ def rrf(
 
 def keyword_weight_for(query: str, base: float) -> float:
     """Exact identifiers in the query (error codes, ticket keys) make keyword matches worth more."""
-    return base * 1.5 if _CODE_LIKE.search(query) else base
+    return base * 1.5 if CODE_LIKE.search(query) else base
+
+
+def code_tokens(text: str) -> set[str]:
+    """Exact identifiers in a question: error codes, ticket keys (``AADSTS53003``, ``0x80180014``, ``MG-401``)."""
+    return {m.group(0).lower() for m in CODE_LIKE.finditer(text)}
 
 
 @dataclass(slots=True)
@@ -69,8 +74,16 @@ class HybridRetriever:
         self.max_chunks_per_doc = max_chunks_per_doc
 
     def search(
-        self, query: str, k: int, filters: SearchFilters, mode: SearchMode = "hybrid_rerank"
+        self,
+        query: str,
+        k: int,
+        filters: SearchFilters,
+        mode: SearchMode = "hybrid_rerank",
+        doc_type_boost: dict[str, float] | None = None,
     ) -> list[Hit]:
+        """Hybrid search. ``doc_type_boost`` is added to the rerank score for *ordering only* (``rerank_score`` keeps
+        the raw cross-encoder score, which the refusal gate uses). It lets authoritative sources (runbooks, KB,
+        standards) outrank the many near-duplicate tickets that match the same symptom."""
         query = query.strip()
         if not query:
             return []
@@ -110,9 +123,10 @@ class HybridRetriever:
 
         if mode == "hybrid_rerank" and self.reranker is not None and hits:
             scores = self.reranker.score(query, [h.chunk.embed_text for h in hits])
+            boost = doc_type_boost or {}
             for h, s in zip(hits, scores, strict=True):
                 h.rerank_score = s
-                h.score = s
+                h.score = s + boost.get(str(h.chunk.meta.get("doc_type", "")), 0.0)
             hits.sort(key=lambda h: -h.score)
 
         return self._diversify(hits, k)
