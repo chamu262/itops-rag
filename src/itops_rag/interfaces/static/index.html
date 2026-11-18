@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IT Ops RAG</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5b6573; --border: #dde1e6;
+    --accent: #2f5bd3; --accent-soft: #e8eefc; --warn: #a15c00; --warn-soft: #fff4e0; --ok: #1d7a46;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111417; --panel: #1a1e23; --text: #e6e9ed; --muted: #9aa4b1; --border: #2c323a;
+            --accent: #7c9cff; --accent-soft: #1e2a4a; --warn: #f0b35a; --warn-soft: #3a2c14; --ok: #5cc98b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--panel);
+           display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .meta { color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 16px; padding: 16px;
+         max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  form { display: grid; gap: 10px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  textarea, select, input { width: 100%; font: inherit; color: var(--text); background: var(--bg);
+                            border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; }
+  textarea { resize: vertical; min-height: 64px; }
+  select { width: auto; flex: 1; min-width: 180px; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer;
+           background: var(--accent); color: #fff; font-weight: 600; }
+  button.secondary { background: var(--accent-soft); color: var(--accent); }
+  button:disabled { opacity: .6; cursor: wait; }
+  #input-wrap { display: none; }
+  .answer { margin-top: 16px; }
+  .answer .body { white-space: pre-wrap; }
+  .answer.refused { border-left: 4px solid var(--warn); padding-left: 12px; }
+  .cite { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 5px;
+          padding: 0 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .warn { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 8px 10px;
+          margin-top: 10px; font-size: 13px; }
+  .usage { color: var(--muted); font-size: 12px; margin-top: 10px; font-family: var(--mono); }
+  .chunk { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .chunk.cited { border-color: var(--accent); }
+  .chunk.flash { box-shadow: 0 0 0 3px var(--accent-soft); }
+  .chunk h3 { font-size: 13px; margin: 0 0 4px; }
+  .chunk .tags { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .chunk pre { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; margin: 0;
+               max-height: 220px; overflow: auto; }
+  .empty { color: var(--muted); font-size: 14px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>IT Ops RAG</h1>
+  <span class="meta" id="stats">loading index…</span>
+</header>
+<main>
+  <section class="panel">
+    <form id="ask">
+      <textarea id="question" placeholder="Ask about runbooks, tickets, changes… e.g. “MeshGate shows MG-401 after the macOS update”" required></textarea>
+      <div id="input-wrap"><textarea id="input" placeholder="Paste the ticket / change plan here"></textarea></div>
+      <div class="row">
+        <select id="prompt" aria-label="Prompt"></select>
+        <button type="submit" id="go">Ask</button>
+        <button type="button" class="secondary" id="search">Search only</button>
+      </div>
+    </form>
+    <div id="out"><p class="empty">Answers cite numbered sources [n]. Click a citation to see the chunk.</p></div>
+  </section>
+  <aside class="panel">
+    <h2>Sources</h2>
+    <div id="chunks"><p class="empty">Retrieved chunks appear here.</p></div>
+  </aside>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let prompts = [];
+
+async function init() {
+  try {
+    const s = await (await fetch("/api/stats")).json();
+    $("stats").textContent = `${s.documents} docs · ${s.chunks} chunks · ${s.store} · rerank: ${s.reranker || "off"}`;
+  } catch { $("stats").textContent = "index not reachable"; }
+  prompts = await (await fetch("/api/prompts")).json();
+  $("prompt").innerHTML = prompts.map(p => `<option value="${esc(p.id)}">${esc(p.title)} (${esc(p.id)})</option>`).join("");
+  $("prompt").value = "qa";
+  $("prompt").addEventListener("change", syncInput);
+  syncInput();
+}
+function syncInput() {
+  const p = prompts.find(x => x.id === $("prompt").value);
+  $("input-wrap").style.display = p && p.needs_input ? "block" : "none";
+  $("input").placeholder = p && p.needs_input ? `Paste the ${p.input_label.replace("_", " ")} here` : "";
+}
+function renderChunks(chunks, cited = []) {
+  if (!chunks.length) { $("chunks").innerHTML = '<p class="empty">No chunks matched for your access level.</p>'; return; }
+  $("chunks").innerHTML = chunks.map((c, i) => `
+    <div class="chunk ${cited.includes(i + 1) ? "cited" : ""}" id="chunk-${i + 1}">
+      <h3>[${i + 1}] ${esc(c.doc_id)} · ${esc(c.title)}${c.heading ? " › " + esc(c.heading) : ""}</h3>
+      <div class="tags">${esc(c.doc_type)} · ${esc(c.system)} · ${esc(c.access)} · updated ${esc(c.updated || "–")} · score ${c.score}</div>
+      <pre>${esc(c.text)}</pre>
+    </div>`).join("");
+}
+function linkCitations(text) {
+  return esc(text).replace(/\[(\d+(?:\s*[,;]\s*\d+)*)\]/g, (m, g) =>
+    g.split(/[,;]/).map(n => `<span class="cite" data-n="${n.trim()}">${n.trim()}</span>`).join(" "));
+}
+document.addEventListener("click", (e) => {
+  const n = e.target.dataset && e.target.dataset.n;
+  if (!n) return;
+  const el = $("chunk-" + n);
+  if (el) { el.scrollIntoView({behavior: "smooth", block: "center"}); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1200); }
+});
+$("ask").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("go").disabled = true; $("out").innerHTML = '<p class="empty">Retrieving and answering…</p>';
+  try {
+    const r = await fetch("/api/ask", {method: "POST", headers: {"content-type": "application/json"},
+      body: JSON.stringify({question: $("question").value, prompt: $("prompt").value, input_text: $("input").value})});
+    const a = await r.json();
+    if (!r.ok) throw new Error(a.detail || r.statusText);
+    const u = a.usage;
+    $("out").innerHTML = `<div class="answer ${a.refused ? "refused" : ""}"><div class="body">${linkCitations(a.answer)}</div>
+      ${a.warnings.map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join("")}
+      <div class="usage">${u.model ? `${esc(u.model)} · in ${u.input_tokens} (cache ${u.cache_read_tokens}) · out ${u.output_tokens} · $${u.cost_usd.toFixed(4)}` : "refused locally · no model call · $0.0000"}</div></div>`;
+    renderChunks(a.chunks, a.cited);
+  } catch (err) { $("out").innerHTML = `<div class="warn">${esc(err.message)}</div>`; }
+  finally { $("go").disabled = false; }
+});
+$("search").addEventListener("click", async () => {
+  const q = $("question").value.trim(); if (!q) return;
+  const hits = await (await fetch("/api/search?k=8&q=" + encodeURIComponent(q))).json();
+  $("out").innerHTML = `<p class="empty">${hits.length} chunks, no model call.</p>`;
+  renderChunks(hits);
+});
+init();
+</script>
+</body>
+</html>
