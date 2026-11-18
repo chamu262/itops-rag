@@ -70,7 +70,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .fastembed_cache
           key: fastembed-minilm-msmarco-v1
