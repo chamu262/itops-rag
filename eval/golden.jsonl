@@ -43,3 +43,24 @@
 {"id": "u04", "question": "What is the parental leave policy?", "expected": [], "answerable": false, "role": "public", "prompt": "qa", "tags": ["unanswerable"]}
 {"id": "u05", "question": "How do I set up AWS budget alerts for the data team?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "qa", "tags": ["unanswerable"]}
 {"id": "u06", "question": "What was the root cause of the leaked token incident?", "expected": [], "answerable": false, "role": "public", "prompt": "qa", "tags": ["unanswerable"]}
+{"id": "h01", "question": "VPN client keeps timing out on hotel wifi", "expected": ["RB-NET-001", "VND-005", "KB-0002"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "paraphrase"]}
+{"id": "h02", "question": "Users can't get on the VPN because their laptop fails the posture check", "expected": ["RB-NET-001", "VND-005"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard"]}
+{"id": "h03", "question": "New joiner gets MG-403 when connecting", "expected": ["RB-NET-001", "VND-005"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "code"]}
+{"id": "h04", "question": "Windows laptop sits on the enrollment status page for an hour during setup and then fails", "expected": ["RB-WIN-001", "VND-002"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "paraphrase"]}
+{"id": "h05", "question": "New Windows laptop says the device is blocked from enrolling in management", "expected": ["RB-WIN-001", "VND-002"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "paraphrase"]}
+{"id": "h06", "question": "Windows setup says the user isn't licensed for device management", "expected": ["RB-WIN-001", "VND-002"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "paraphrase"]}
+{"id": "h07", "question": "A user's sign-in is blocked by a device compliance policy, what should I check?", "expected": ["RB-IDM-002", "VND-003"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "paraphrase"]}
+{"id": "h08", "question": "How do we get into the tenant if every admin is locked out?", "expected": ["RB-IDM-003"], "answerable": true, "role": "security", "prompt": "runbook_steps", "tags": ["hard", "paraphrase"]}
+{"id": "h09", "question": "The Apple push certificate expired, what breaks and how do we fix it?", "expected": ["PM-2026-03", "VND-001", "OC-004"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard"]}
+{"id": "h10", "question": "Mac keeps asking for the old password after the user changed it in Entra", "expected": ["RB-MAC-004"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "paraphrase"]}
+{"id": "h11", "question": "Who is on call for Jamf problems?", "expected": ["OC-001"], "answerable": true, "role": "it-staff", "prompt": "qa", "tags": ["hard"]}
+{"id": "h12", "question": "How long do we have to install a high severity patch on laptops?", "expected": ["CF-004"], "answerable": true, "role": "it-staff", "prompt": "policy_check", "tags": ["hard", "paraphrase"]}
+{"id": "h13", "question": "VPN rejects the login token because the laptop clock is wrong", "expected": ["RB-NET-001"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard"]}
+{"id": "h14", "question": "I can't connect to the VPN from home", "expected": ["KB-0002"], "answerable": true, "role": "public", "prompt": "qa", "tags": ["hard", "kb"]}
+{"id": "h15", "question": "My authenticator codes stopped working after I switched phones", "expected": ["KB-0011"], "answerable": true, "role": "public", "prompt": "qa", "tags": ["hard", "kb"]}
+{"id": "h16", "question": "Autopilot 0x80180014", "expected": ["RB-WIN-001", "VND-002"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "code"]}
+{"id": "hu1", "question": "What does MeshGate error MG-777 mean?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "troubleshoot", "tags": ["unanswerable", "near-miss"]}
+{"id": "hu2", "question": "How do I enrol a Chromebook into Intune?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "runbook_steps", "tags": ["unanswerable", "near-miss"]}
+{"id": "hu3", "question": "How do I rotate the Okta SAML signing certificate?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "runbook_steps", "tags": ["unanswerable", "near-miss"]}
+{"id": "hu4", "question": "What is the Wi-Fi password for the Tokyo office?", "expected": [], "answerable": false, "role": "public", "prompt": "qa", "tags": ["unanswerable", "near-miss"]}
+{"id": "hu5", "question": "How do I recover the disk encryption key on a Linux laptop?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "troubleshoot", "tags": ["unanswerable", "near-miss"]}

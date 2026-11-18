@@ -1,58 +1,89 @@
 {
   "k": 4,
-  "questions": 44,
+  "questions": 65,
   "modes": {
     "vector": {
       "mode": "vector",
       "k": 4,
-      "hit_at_k": 0.974,
-      "recall_at_k": 0.728,
-      "mrr": 0.943,
+      "hit_at_k": 0.944,
+      "mrr": 0.843,
+      "primary_hit_at_k": 0.926,
+      "primary_mrr": 0.769,
+      "recall_at_k": 0.689,
+      "ticket_share": 0.169,
       "refusal_accuracy": null,
       "false_refusals": 0,
+      "missed_refusals": 0,
       "access_leaks": 0,
-      "ms_per_query": 3.2,
+      "ms_per_query": 2.7,
       "misses": [
-        "q30"
+        "q13",
+        "q30",
+        "h05",
+        "h11"
       ]
     },
     "keyword": {
       "mode": "keyword",
       "k": 4,
-      "hit_at_k": 0.974,
-      "recall_at_k": 0.712,
-      "mrr": 0.899,
+      "hit_at_k": 0.963,
+      "mrr": 0.798,
+      "primary_hit_at_k": 0.889,
+      "primary_mrr": 0.718,
+      "recall_at_k": 0.703,
+      "ticket_share": 0.184,
       "refusal_accuracy": null,
       "false_refusals": 0,
+      "missed_refusals": 0,
       "access_leaks": 0,
-      "ms_per_query": 0.2,
+      "ms_per_query": 0.4,
       "misses": [
-        "q36"
+        "q05",
+        "q13",
+        "h02",
+        "h06",
+        "h11",
+        "h16"
       ]
     },
     "hybrid": {
       "mode": "hybrid",
       "k": 4,
-      "hit_at_k": 1.0,
-      "recall_at_k": 0.769,
-      "mrr": 0.943,
+      "hit_at_k": 0.981,
+      "mrr": 0.858,
+      "primary_hit_at_k": 0.926,
+      "primary_mrr": 0.752,
+      "recall_at_k": 0.732,
+      "ticket_share": 0.203,
       "refusal_accuracy": null,
       "false_refusals": 0,
+      "missed_refusals": 0,
       "access_leaks": 0,
       "ms_per_query": 2.3,
-      "misses": []
+      "misses": [
+        "q05",
+        "q13",
+        "h06",
+        "h11"
+      ]
     },
     "hybrid_rerank": {
       "mode": "hybrid_rerank",
       "k": 4,
-      "hit_at_k": 1.0,
-      "recall_at_k": 0.765,
-      "mrr": 0.961,
-      "refusal_accuracy": 1.0,
+      "hit_at_k": 0.981,
+      "mrr": 0.914,
+      "primary_hit_at_k": 0.981,
+      "primary_mrr": 0.85,
+      "recall_at_k": 0.744,
+      "ticket_share": 0.092,
+      "refusal_accuracy": 0.954,
       "false_refusals": 0,
+      "missed_refusals": 3,
       "access_leaks": 0,
-      "ms_per_query": 227.7,
-      "misses": []
+      "ms_per_query": 233.8,
+      "misses": [
+        "h11"
+      ]
     }
   }
 }
