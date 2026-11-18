@@ -74,7 +74,22 @@ flowchart LR
     V --> OUT[CLI · Web UI · MCP · Slack]
 ```
 
-More detail, including the design decisions and their trade-offs: [docs/architecture.md](docs/architecture.md).
+### How it works, visually
+
+**[docs/how-it-works.md](docs/how-it-works.md)** walks through the whole RAG database with diagrams and real numbers
+from the demo index: what each table holds, how ingest, chunking, embedding and retrieval connect, and one real
+question traced through every stage.
+
+| Layer | Strategy in one line | Diagram |
+|---|---|---|
+| **Database** | One SQLite file per index: documents, chunks, FTS5 keyword index, sqlite-vec vectors and a manifest, all joined by chunk rowid (Chroma optional for vectors) | [ER diagram](docs/how-it-works.md#2-what-is-in-the-database) |
+| **Chunking** | Split at headings first, then 800-char chunks with 100-char overlap; tickets as core + comments; PDF headings from font size | [chunking](docs/how-it-works.md#4-chunking-strategy) |
+| **Embedding** | `title > heading` + chunk text → all-MiniLM-L6-v2 (384-d, ONNX, local, free), cosine; model pinned in the manifest | [embedding](docs/how-it-works.md#5-embedding-strategy) |
+| **Retrieval** | Prechecks → BM25 + vector → RRF → cross-encoder rerank + doc-type prior → 1 hit per doc → refusal gate → small-to-big expansion | [retrieval](docs/how-it-works.md#6-retrieval-strategy) · [traced example](docs/how-it-works.md#7-a-real-question-stage-by-stage) |
+
+Try it on your own question: `python scripts/trace_query.py "your question"`. Design decisions and trade-offs are
+in [docs/architecture.md](docs/architecture.md); every experiment behind the settings is in
+[docs/review.md](docs/review.md).
 
 ## Quick start
 
@@ -150,7 +165,7 @@ the data never is. Full example: [examples/library_usage.py](examples/library_us
 
 ## Retrieval quality
 
-Measured offline (no API key) on the 65-question golden set ([eval/](eval/)): 54 answerable questions across all
+Measured offline (no API key) on the 66-question golden set ([eval/](eval/)): 55 answerable questions across all
 three roles, including 16 deliberately hard paraphrases, plus 11 that should be refused, 5 of them near-misses
 ("Okta SAML rotation", "MG-777"). Each question is searched exactly the way `ask()` searches it (its prompt
 template's doc types and top-k), k = 4. **Primary** means the one document that should answer it (the runbook,
@@ -158,13 +173,13 @@ KB article or standard), not just any related ticket. Reproduce with `itops-rag 
 
 | Mode | hit@4 | MRR | primary hit@4 | primary MRR | recall@4 | ticket share | refusal accuracy | access leaks |
 |---|---|---|---|---|---|---|---|---|
-| vector | 0.93 | 0.82 | 0.91 | 0.74 | 0.68 | 0.17 | – | 0 |
-| keyword (BM25) | 0.96 | 0.79 | 0.85 | 0.70 | 0.69 | 0.20 | – | 0 |
-| hybrid (RRF) | 0.94 | 0.84 | 0.89 | 0.74 | 0.70 | 0.20 | – | 0 |
-| **hybrid + rerank** | **0.98** | **0.90** | **0.98** | **0.85** | **0.74** | **0.11** | **1.00** | **0** |
+| vector | 0.93 | 0.83 | 0.89 | 0.72 | 0.68 | 0.18 | – | 0 |
+| keyword (BM25) | 0.96 | 0.79 | 0.84 | 0.69 | 0.69 | 0.21 | – | 0 |
+| hybrid (RRF) | 0.94 | 0.84 | 0.87 | 0.73 | 0.71 | 0.22 | – | 0 |
+| **hybrid + rerank** | **0.98** | **0.90** | **0.98** | **0.84** | **0.73** | **0.10** | **1.00** | **0** |
 
 What moved the numbers, over two calibration rounds (the [review](docs/review.md) has every experiment, including
-the ones that didn't help). Round 2 used a **dev/test split**: settings were chosen on 45 dev questions, and the 20
+the ones that didn't help). Round 2 used a **dev/test split**: settings were chosen on 46 dev questions, and the 20
 held-out test questions were only reported (test: primary hit 1.00, primary MRR 0.86, refusal accuracy 1.00).
 
 - **Doc-type prior and one hit per document.** In this corpus 82 of 145 documents are tickets, and they used to
@@ -173,8 +188,9 @@ held-out test questions were only reported (test: primary hit 1.00, primary MRR 
 - **Free refusals now catch all 11 unanswerable questions**, with no false refusals. They come from three checks
   that cost nothing: a rerank-score threshold, error codes no retrieved document mentions (MG-777), and IT products
   no visible document mentions (Okta, Chromebook, Linux).
-- **The candidate pool was cut from 30 to 20** with no quality change: reranking dropped from about 235 to about 150 ms
-  per query.
+- **The candidate pool stays at 30.** Cutting it to 20 looked free on the golden set but dropped the Autopilot runbook
+  for a wordier phrasing of the same question (found by tracing it with `scripts/trace_query.py`). That phrasing is
+  now a regression question, and pool 20 loses on it.
 - **Hybrid plus rerank beats either half.** Vector search misses error-code questions, and keyword search misses
   paraphrases. (Without the reranker, hybrid alone is now slightly weaker than vector alone on primary hit, because
   ticket comments are their own chunks. The default path always reranks.)

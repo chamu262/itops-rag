@@ -38,7 +38,7 @@ unanswerables). "Primary" means the single document that should answer the quest
 
 ## Round 2: chunking, embedding and retrieval calibration
 
-**Method.** The golden set was split into dev (45 questions) and held-out test (20), stratified by kind. Each
+**Method.** The golden set was split into dev (45 questions, 46 after round 2b) and held-out test (20), stratified by kind. Each
 variant got its own index build (`scripts/calibrate.py`) and was scored on both splits. Decisions used dev only;
 test is reported to show whether a change holds up on questions it wasn't tuned on. n is small: one question moves
 dev by about 0.03 and test by about 0.06.
@@ -48,13 +48,30 @@ dev by about 0.03 and test by about 0.06.
 | Round-1 settings | 657 | 0.97 | 0.84 | 0.98 | 1.00 | 0.86 | 0.95 | 248 | baseline |
 | + product gate | 657 | 0.97 | 0.84 | **1.00** | 1.00 | 0.86 | **1.00** | 244 | **kept** |
 | + ticket comments in their own chunks | 696 | 0.97 | 0.84 | 0.98 | 1.00 | 0.86 | 0.95 | 242 | **kept** (neutral; cleaner ticket context) |
-| + candidate pool 20 (was 30) | 657 | 0.97 | 0.84 | 0.98 | 1.00 | 0.87 | 0.95 | **159** | **kept** |
+| + candidate pool 20 (was 30) | 657 | 0.97 | 0.84 | 0.98 | 1.00 | 0.87 | 0.95 | **159** | kept, then **reversed in 2b** |
 | Table rows as chunks | 759 | 1.00 | 0.85 | 0.98 | 0.94 | 0.84 | 0.95 | 237 | opt-in only: +1 dev, −1 test |
 | Merge sections < 300 chars | 416 | 0.97 | 0.83 | 0.96 | 0.94 | 0.81 | 0.95 | 258 | rejected |
 | Merge sections < 500 chars | 405 | 0.97 | 0.82 | 0.96 | 0.94 | 0.84 | 0.95 | 264 | rejected |
-| **Final** (gate + ticket split + pool 20) | 696 | 0.97 | 0.84 | **1.00** | **1.00** | **0.86** | **1.00** | **170** | **shipped** |
+| Final as first shipped in 0.2.0 (gate + ticket split + pool 20) | 696 | 0.97 | 0.84 | **1.00** | **1.00** | **0.86** | **1.00** | **170** | **shipped** |
 | Final + ms-marco-L12 reranker | 696 | 0.97 | 0.80 | 1.00 | 1.00 | 0.87 | 1.00 | 367 | rejected |
 | Final + jina-reranker-v1-turbo | 696 | 0.97 | 0.86 | 0.96 | 1.00 | 0.92 | 1.00 | 223 | follow-up: needs its own refusal threshold |
+
+### Round 2b: tracing a real question reversed one decision
+
+Tracing "Autopilot fails with 0x80180014 on a new laptop" stage by stage (`scripts/trace_query.py`) showed the
+Autopilot runbook missing from the 20 rerank candidates. Each ticket now has two or three chunks (core and
+comments), and the matching tickets filled every slot. The golden set had only the shorter phrasing, so it missed
+this. That phrasing is now dev question h17.
+
+| Variant | Dev primary hit | Dev primary MRR | Test primary hit | Test primary MRR | ms/query | Verdict |
+|---|---|---|---|---|---|---|
+| Pool 30 (shipped in 0.2.1) | **0.97** | **0.83** | 1.00 | 0.86 | 236 | **kept** |
+| Pool 20 (0.2.0 default) | 0.95 | 0.82 | 1.00 | 0.86 | 141 | reversed |
+| Pool 30, max 2 chunks per doc in the pool | 0.95 | 0.79 | 0.94 | 0.81 | 188 | rejected |
+| Pool 20, max 1 chunk per doc in the pool | 0.92 | 0.75 | 0.94 | 0.81 | 92 | rejected |
+
+Spreading the pool across more documents sounds right but hurt. Near-duplicate chunks of the right ticket give the
+reranker more to agree on, and capping them let weaker documents in.
 
 Also shipped in this round, because they fix correctness rather than tune a number:
 - **System names are normalised at ingest.** The demo tickets used ~30 spellings, such as "Entra ID" vs "entra" or
