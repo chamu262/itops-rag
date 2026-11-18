@@ -26,10 +26,11 @@ def _ticket_doc(
         v = body.get(label.lower())
         if v:
             lines.append(f"{label}: {v}")
+    # Resolution first: it is what makes a past ticket useful. Headings let the chunker keep comments apart.
     for label in ("Resolution", "Description", "Comments"):
         v = body.get(label.lower())
         if v:
-            lines += ["", f"{label}:", v]
+            lines += ["", f"## {label}", v]
     meta = {
         "id": key,
         "title": f"{key}: {summary}",
@@ -39,7 +40,7 @@ def _ticket_doc(
         **meta_extra,
     }
     return make_document(
-        meta, "\n".join(lines), path, root, default_type="ticket", markdown=False, extra={"redact_ip": True}
+        meta, "\n".join(lines), path, root, default_type="ticket", markdown=True, extra={"redact_ip": True}
     )
 
 

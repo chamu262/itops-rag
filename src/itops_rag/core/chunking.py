@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from itops_rag.core.models import Chunk, Document
 
-CHUNKER_VERSION = 2
+CHUNKER_VERSION = 4
 """Bump when splitting or ``Chunk.embed_text`` changes, so ingest re-chunks instead of skipping unchanged docs."""
 
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
@@ -126,15 +126,115 @@ def join_overlapping(parts: list[str], max_overlap: int = 400) -> str:
     return out
 
 
-def chunk_document(doc: Document, size: int = 800, overlap: int = 100) -> list[Chunk]:
+@dataclass(slots=True, frozen=True)
+class ChunkOptions:
+    size: int = 800
+    overlap: int = 100
+    min_section_chars: int = 0
+    """Merge a section into its neighbour when either is shorter than this (0 = off). Heading-split runbooks produce
+    many 100–300-character sections, and tiny chunks are weak candidates for the reranker."""
+    table_rows: bool = False
+    """Index each Markdown table row as its own chunk, with the header row repeated, so a lookup like
+    "who is on call for Jamf?" can match the one row that answers it."""
+    split_ticket_comments: bool = False
+    """Tickets: one chunk for summary + resolution + description, comments in separate chunks."""
+
+
+_TABLE_LINE = re.compile(r"^\s*\|.*\|\s*$")
+_TABLE_SEP = re.compile(r"^\s*\|?\s*:?-{2,}")
+
+
+def _split_tables(section: Section) -> list[Section]:
+    """Pull Markdown tables out of a section: one Section per data row (header repeated), plus the remaining text."""
+    lines = section.text.splitlines()
+    rest: list[str] = []
+    rows: list[Section] = []
+    i = 0
+    while i < len(lines):
+        if _TABLE_LINE.match(lines[i]) and i + 1 < len(lines) and _TABLE_SEP.match(lines[i + 1]):
+            header = lines[i].strip()
+            j = i + 2
+            while j < len(lines) and _TABLE_LINE.match(lines[j]):
+                row = lines[j].strip()
+                rows.append(
+                    Section(f"{section.heading} > table" if section.heading else "table", f"{header}\n{row}")
+                )
+                j += 1
+            i = j
+            continue
+        rest.append(lines[i])
+        i += 1
+    remaining = "\n".join(rest).strip()
+    if not rows:
+        return [section]
+    return ([Section(section.heading, remaining)] if remaining else []) + rows
+
+
+def _common_heading(a: str, b: str) -> str:
+    pa, pb = a.split(" > "), b.split(" > ")
+    common = []
+    for x, y in zip(pa, pb, strict=False):
+        if x != y:
+            break
+        common.append(x)
+    return " > ".join(common) if common else a
+
+
+def _merge_small(sections: list[Section], min_chars: int, size: int) -> list[Section]:
+    out: list[Section] = []
+    for sec in sections:
+        if (
+            out
+            and "table" not in sec.heading.split(" > ")[-1:]
+            and "table" not in out[-1].heading.split(" > ")[-1:]
+        ):
+            prev = out[-1]
+            leaf = sec.heading.split(" > ")[-1] if sec.heading else ""
+            joined = (
+                f"{prev.text}\n\n{leaf + ':' if leaf and leaf != prev.heading else ''}\n{sec.text}".replace(
+                    "\n\n\n", "\n\n"
+                )
+            )
+            if (len(prev.text) < min_chars or len(sec.text) < min_chars) and len(joined) <= size:
+                out[-1] = Section(_common_heading(prev.heading, sec.heading), joined.strip())
+                continue
+        out.append(sec)
+    return out
+
+
+def _ticket_sections(sections: list[Section]) -> list[Section]:
+    core = [s for s in sections if s.heading != "Comments"]
+    comments = [s for s in sections if s.heading == "Comments"]
+    merged = "\n\n".join((f"{s.heading}:\n{s.text}" if s.heading else s.text) for s in core)
+    return ([Section("", merged)] if merged else []) + comments
+
+
+def chunk_document(
+    doc: Document, size: int = 800, overlap: int = 100, options: ChunkOptions | None = None
+) -> list[Chunk]:
     """Turn a document into chunks. Documents that already fit in one chunk stay whole."""
+    opts = options or ChunkOptions(size=size, overlap=overlap)
     meta = doc.meta()
     sections = split_sections(doc.text) if doc.extra.get("markdown", True) else [Section("", doc.text)]
     if not sections:
         return []
+    if doc.doc_type == "ticket" and doc.extra.get("markdown", True):
+        sections = (
+            _ticket_sections(sections)
+            if opts.split_ticket_comments
+            else [
+                Section(
+                    "", "\n\n".join((f"{s.heading}:\n{s.text}" if s.heading else s.text) for s in sections)
+                )
+            ]
+        )
+    if opts.table_rows:
+        sections = [part for sec in sections for part in _split_tables(sec)]
+    if opts.min_section_chars > 0:
+        sections = _merge_small(sections, opts.min_section_chars, opts.size)
     chunks: list[Chunk] = []
     for section in sections:
-        for body in split_text(section.text, size, overlap):
+        for body in split_text(section.text, opts.size, opts.overlap):
             n = len(chunks)
             chunks.append(
                 Chunk(

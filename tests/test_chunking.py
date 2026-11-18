@@ -55,3 +55,37 @@ def test_overlap_survives_long_paragraphs() -> None:
     assert len(chunks) == 3
     assert all(c.startswith("word") for c in chunks)
     assert len(chunks[1]) > len(para)  # carries some overlap from the previous paragraph
+
+
+def test_table_rows_become_their_own_chunks() -> None:
+    from itops_rag.core.chunking import ChunkOptions
+
+    text = (
+        "## Matrix\nIntro line.\n\n| System | Team |\n|---|---|\n| Jamf | Endpoint |\n| Entra | Identity |\n"
+    )
+    doc = Document(id="OC", title="Escalation", text=text)
+    chunks = chunk_document(doc, options=ChunkOptions(table_rows=True))
+    rows = [c for c in chunks if c.heading.endswith("table")]
+    assert len(rows) == 2 and all(c.text.startswith("| System | Team |") for c in rows)
+    assert any("Intro line." in c.text for c in chunks)
+
+
+def test_small_sections_merge_under_their_common_heading() -> None:
+    from itops_rag.core.chunking import ChunkOptions
+
+    text = "## Steps\n### One\nshort a\n### Two\nshort b\n## Rollback\n" + "long " * 100
+    chunks = chunk_document(
+        Document(id="R", title="T", text=text), options=ChunkOptions(min_section_chars=300)
+    )
+    assert chunks[0].heading == "Steps" and "short a" in chunks[0].text and "short b" in chunks[0].text
+
+
+def test_ticket_comments_are_kept_apart() -> None:
+    from itops_rag.core.chunking import ChunkOptions
+
+    text = "Ticket HELP-1: VPN\nStatus: Resolved\n\n## Resolution\nReauth fixed it\n\n## Comments\n2026-01-01 noise"
+    doc = Document(id="HELP-1", title="HELP-1: VPN", text=text, doc_type="ticket")
+    split = chunk_document(doc, options=ChunkOptions(split_ticket_comments=True))
+    assert [c.heading for c in split] == ["", "Comments"] and "Reauth fixed it" in split[0].text
+    whole = chunk_document(doc, options=ChunkOptions(split_ticket_comments=False))
+    assert len(whole) == 1 and "noise" in whole[0].text
