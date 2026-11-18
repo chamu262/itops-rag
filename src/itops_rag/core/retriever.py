@@ -42,7 +42,14 @@ def keyword_weight_for(query: str, base: float) -> float:
 
 def code_tokens(text: str) -> set[str]:
     """Exact identifiers in a question: error codes, ticket keys (``AADSTS53003``, ``0x80180014``, ``MG-401``)."""
-    return {m.group(0).lower() for m in CODE_LIKE.finditer(text)}
+    return {m.group(0).lower() for m in CODE_LIKE.finditer(text)} | {
+        m.group(0).lower() for m in _CODE_LIKE_ANY_CASE.finditer(text)
+    }
+
+
+# Lower-case forms people type ("mg-777", "0X80180014", "aadsts53003"); narrower than CODE_LIKE so ordinary words
+# with a number ("windows11", "office365") are not treated as codes.
+_CODE_LIKE_ANY_CASE = re.compile(r"(?i)\b(?:[a-z]{1,8}-\d{2,}|0x[0-9a-f]{6,}|[a-z]{2,}\d{4,})\b")
 
 
 @dataclass(slots=True)

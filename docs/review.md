@@ -31,7 +31,7 @@ unanswerables). "Primary" means the single document that should answer the quest
 | Evaluate on the same path `ask()` uses (template doc types and top-k), and add primary-doc metrics | The old eval overstated recall | Yes |
 | Small-to-big context: expand each hit to its section, or the whole doc under 4k chars; ~6k-token budget; tickets stay as chunks | Heading-split chunks averaged ~330 chars, and step lists were split from their "see step 3" references. The context was ~600 tokens; it is now complete sections. | Yes |
 | Refuse when the question names an error code that no retrieved doc mentions | Refuses "MG-777" and passes every answerable code question | Yes |
-| Faithfulness check on Haiku by default | About $0.0002 per answer | Yes |
+| Faithfulness check on Haiku by default | Under $0.001 per answer (it reads the ~4–7k-token context at $0.10/M) | Yes |
 | Other embedding models: bge-small, arctic-embed-s, nomic-v1.5, bge-base | No better after reranking (primary hit 0.75–0.81 vs 0.81 on the hard set), and 2–8× slower to build | No: kept all-MiniLM-L6-v2 |
 | Other rerankers: ms-marco-L12, jina tiny/turbo, bge-reranker-base | L12 and jina-turbo were slightly better on hard questions at 2× latency. bge-base was 7× slower and worse. | No: kept ms-marco-L6 |
 | Candidate pool 20/30/50, RRF k 20/60, FTS5 column weights, contextual chunk headers, 500 or 1200-char chunks, a synonym glossary | Neutral, mixed or worse | No |

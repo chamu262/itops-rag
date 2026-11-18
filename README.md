@@ -158,10 +158,10 @@ KB article or standard), not just any related ticket. Reproduce with `itops-rag 
 
 | Mode | hit@4 | MRR | primary hit@4 | primary MRR | recall@4 | ticket share | refusal accuracy | access leaks |
 |---|---|---|---|---|---|---|---|---|
-| vector | 0.94 | 0.84 | 0.93 | 0.77 | 0.69 | 0.17 | – | 0 |
+| vector | 0.94 | 0.84 | 0.93 | 0.77 | 0.70 | 0.17 | – | 0 |
 | keyword (BM25) | 0.96 | 0.80 | 0.89 | 0.72 | 0.70 | 0.18 | – | 0 |
-| hybrid (RRF) | 0.98 | 0.86 | 0.93 | 0.75 | 0.73 | 0.20 | – | 0 |
-| **hybrid + rerank** | **0.98** | **0.91** | **0.98** | **0.85** | **0.74** | **0.09** | **0.95** | **0** |
+| hybrid (RRF) | 0.98 | 0.86 | 0.93 | 0.75 | 0.74 | 0.21 | – | 0 |
+| **hybrid + rerank** | **0.98** | **0.91** | **0.98** | **0.85** | **0.75** | **0.10** | **0.95** | **0** |
 
 What moved the numbers (the [review](docs/review.md) has the experiments, including the ones that didn't help):
 
@@ -188,7 +188,7 @@ if primary hit, MRR or refusal accuracy drop (see `eval-gate` in the workflow).
 | Retrieved text is data | Chunks are fenced in `<context>`, tag-like text is neutralised, injection patterns are flagged `suspicious="true"`, and the system prompt says to ignore and report them. Tested with planted attacks in `data/demo/kestrel-cloud/adversarial/`. |
 | Redaction at ingest | AWS, GitHub, Slack, Anthropic, Azure and Google keys, `sk-`/`pk-` keys, JWTs, Bearer/Basic auth headers, private keys (even truncated ones), `name = value` secrets (`DB_PASSWORD`, `aws_secret_access_key`, quoted values), emails and phone numbers are masked before embedding, plus IPs in tickets. People fields are dropped from ticket exports. A test ingests the adversarial fixtures and asserts that no planted secret survives. |
 | Access tags | `public` < `it-staff` < `security` per document, enforced inside both the keyword and the vector query. Documents with no tag default to `it-staff`, not `public`. The web UI is `public` unless a proxy-verified role header says otherwise. |
-| Cost | Embeddings, search, rerank, refusals and eval are local and free. Haiku 5.5 runs the cheap steps (triage, policy checks, the faithfulness check at about $0.0002), and every call is logged with its cost against a monthly budget cap that blocks calls. Unknown or fallback models are charged at the highest listed price, so the cap errs on the safe side. Prompt caching is wired but rarely pays here: the system prompt (~330 tokens) is under the 512-token minimum, and every question has different context. |
+| Cost | Embeddings, search, rerank, refusals and eval are local and free. Haiku 5.5 runs the cheap steps (triage, policy checks, the faithfulness check, under $0.001), and every call is logged with its cost against a monthly budget cap that blocks calls. Unknown or fallback models are charged at the highest listed price, so the cap errs on the safe side. Prompt caching is wired but rarely pays here: the system prompt (~330 tokens) is under the 512-token minimum, and every question has different context. |
 | Model safety | Server-side fallbacks (`fallbacks: "default"`) are on for Opus, so a safety-classifier decline is retried in the same call. Turn it off with `ITOPS_RAG_SERVER_FALLBACKS=false`. |
 
 Known limits: regexes can't find personal names in free text (loaders drop known people fields instead), and a

@@ -42,7 +42,7 @@ these loaders read, so the public engine has no credentials code in it.
 
 A typical `troubleshoot` answer reads about 4–7k input tokens (system rules + expanded sections + task) and generates
 a few hundred to a few thousand output tokens, including thinking (Opus 5.5 always thinks; `effort: medium` keeps it
-moderate). That is roughly **$0.03–0.08 per answer**, plus about $0.0002 for the Haiku faithfulness check. These are
+moderate). That is roughly **$0.03–0.08 per answer**, plus under $0.001 for the Haiku faithfulness check (it reads the same context). These are
 estimates, not measurements: check the cost line on your first answers. The same question through `ticket_triage` on Haiku costs a fraction
 of a cent. Refusals, searches, ingest and evals cost nothing. Every call is logged to `.itops-rag/costs.jsonl`, and
 calls stop once `ITOPS_RAG_MONTHLY_BUDGET_USD` is reached.

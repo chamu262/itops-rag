@@ -113,7 +113,8 @@ def evaluate_retrieval(
     template_path: bool = True,
 ) -> list[ModeResult]:
     """Retrieval metrics per mode. With ``template_path`` (default) each question is searched exactly the way
-    ``ask()`` would: its template's doc types, top-k (capped at ``k``), doc-type boosts and input handling."""
+    ``ask()`` would: its template's doc types, top-k (capped at ``k``), and doc-type boosts. The refusal gate is applied to
+    expanded hits, as in ``ask()``."""
     results = []
     answerable = [i for i in items if i.answerable]
     for mode in modes:
@@ -139,7 +140,9 @@ def evaluate_retrieval(
             tickets += sum(1 for h in hits if h.chunk.meta.get("doc_type") == "ticket")
             returned += len(hits)
             refused = (
-                gate(hits, index.settings, item.question) is not None if mode == "hybrid_rerank" else None
+                gate(index.expand(hits), index.settings, item.question) is not None
+                if mode == "hybrid_rerank"
+                else None
             )
             if item.answerable:
                 expected = set(item.expected)

@@ -240,3 +240,10 @@ def test_expand_gives_whole_short_docs_and_respects_budget(index: Index) -> None
     index.settings.context_char_budget = 350
     small = index.expand(hits)
     assert sum(len(h.chunk.text) for h in small) <= 350 + 60
+
+
+def test_get_document_hides_server_paths(index: Index, tmp_path: Path) -> None:
+    (tmp_path / "n.md").write_text("---\nid: N-1\naccess: public\n---\n# N\ntext")
+    index.ingest_path(tmp_path)
+    d = index.get_document("N-1", role="public")
+    assert d is not None and "ingest_root" not in d["extra"]

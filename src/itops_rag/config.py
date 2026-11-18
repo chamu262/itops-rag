@@ -48,7 +48,7 @@ class Settings(BaseSettings):
         }
     )
     """Added to rerank scores for ordering. Tickets get 0 so authoritative docs win ties with near-duplicate tickets.
-    Templates can override per type (``similar_tickets`` sets tickets high). Measured: primary-doc hit 0.81 -> 0.94
+    Templates can override per type with their own ``doc_type_boost``. Measured: primary-doc hit 0.81 -> 0.94
     on the hard golden questions."""
     context_char_budget: int = 24000
     """About 6k tokens of context per answer, after expanding hits to their section or whole document."""
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     """Send ``fallbacks: "default"`` so a safety-classifier decline is retried on a fallback model in the same call."""
     rewrite_queries: bool = False
     verify_answers: bool = True
-    """A Haiku faithfulness check per answer (about $0.0002). Off with ITOPS_RAG_VERIFY_ANSWERS=false."""
+    """A Haiku faithfulness check per answer (under $0.001). Off with ITOPS_RAG_VERIFY_ANSWERS=false."""
 
     # Cost control
     monthly_budget_usd: float = 25.0

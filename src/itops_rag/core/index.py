@@ -332,8 +332,9 @@ class Index:
                 remaining = self.settings.context_char_budget - used
                 if remaining < 300:
                     break
+                marker = "\n[... truncated to fit the context budget]"
                 if len(text) > remaining:
-                    text = text[:remaining].rstrip() + "\n[... truncated to fit the context budget]"
+                    text = text[: remaining - len(marker)].rstrip() + marker
                 seen.add(key)
                 used += len(text)
                 chunk = Chunk(
@@ -459,6 +460,9 @@ class Index:
             d = self.docs.get_document(doc_id)
         if d is None or d["access"] not in visible_access(role or self.settings.default_role):
             return None
+        d["extra"] = {
+            k: v for k, v in d.get("extra", {}).items() if k not in {"ingest_root", "access_defaulted"}
+        }
         return d
 
     def stats(self) -> dict[str, Any]:

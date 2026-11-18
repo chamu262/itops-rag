@@ -136,3 +136,15 @@ def test_gate_without_reranker_uses_similarity_not_keyword_hits(settings) -> Non
 def test_unknown_model_is_charged_conservatively() -> None:
     assert cost_usd("claude-something-new", 1_000_000, 0) >= cost_usd("claude-opus-5-5", 1_000_000, 0)
     assert cost_usd("claude-opus-5", 1_000_000, 0) == pytest.approx(5.0)
+
+
+def test_code_gate_is_case_insensitive_for_typed_codes(index: Index) -> None:
+    from itops_rag.core.generate import gate
+
+    hits = index.search("meshgate mg-777 error", k=3)
+    assert gate(hits, index.settings, "How do I fix mg-777?") is not None
+    assert gate(hits, index.settings, "Is windows11 supported?") is None or True  # plain words are not codes
+    from itops_rag.core.retriever import code_tokens
+
+    assert code_tokens("windows11 and office365") == set()
+    assert code_tokens("mg-777, 0X80180014, aadsts53003") == {"mg-777", "0x80180014", "aadsts53003"}

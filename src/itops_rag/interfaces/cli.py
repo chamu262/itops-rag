@@ -135,7 +135,12 @@ def ask(
     role: RoleOpt = None,
     k: Annotated[int | None, typer.Option("-k", help="Chunks of context (default from the prompt).")] = None,
     model: Annotated[str | None, typer.Option(help="Override the answer model.")] = None,
-    verify: Annotated[bool, typer.Option(help="Add a cheap faithfulness check on the fast model.")] = False,
+    verify: Annotated[
+        bool | None,
+        typer.Option(
+            "--verify/--no-verify", help="Faithfulness check on the fast model (default: on, from settings)."
+        ),
+    ] = None,
     dry_run: Annotated[bool, typer.Option(help="Show the exact prompt and do not call the API.")] = False,
     show_chunks: Annotated[bool, typer.Option(help="Print the retrieved chunks too.")] = False,
     index: IndexOpt = None,
@@ -143,8 +148,8 @@ def ask(
 ) -> None:
     """Answer a question from the index with Claude, citing chunk numbers."""
     s = _settings(index, answer_model=model)
-    if verify:
-        s.verify_answers = True
+    if verify is not None:
+        s.verify_answers = verify
     input_text = ""
     if input_file is not None:
         input_text = sys.stdin.read() if str(input_file) == "-" else input_file.read_text(encoding="utf-8")

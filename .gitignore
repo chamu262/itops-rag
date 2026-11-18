@@ -27,3 +27,6 @@ local_cache/
 
 # Local editor/agent config
 .claude/
+
+# Connector exports can hold real company content
+exports/

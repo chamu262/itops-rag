@@ -34,7 +34,7 @@
 {"id": "q33", "question": "Why did all the Macs stop receiving MDM commands?", "expected": ["PM-2026-03", "INC0010003"], "answerable": true, "role": "it-staff", "prompt": "incident_summary", "tags": ["postmortem", "paraphrase"]}
 {"id": "q34", "question": "Why did billing emails start bouncing after the DMARC change?", "expected": ["CHG-2026-0008", "INC0010008"], "answerable": true, "role": "it-staff", "prompt": "qa", "tags": ["change"]}
 {"id": "q35", "question": "How did the Platform SSO pilot go?", "expected": ["CHG-2026-0010", "HELP-1049", "HELP-1059", "INC0010012"], "answerable": true, "role": "it-staff", "prompt": "qa", "tags": ["change"]}
-{"id": "q36", "question": "Did the Conditional Access compliant-device policy for admins cause problems?", "expected": ["CHG-2026-0007", "INC0010007"], "answerable": true, "role": "it-staff", "prompt": "change_risk_review", "tags": ["change"]}
+{"id": "q36", "question": "Did the Conditional Access compliant-device policy for admins cause problems?", "expected": ["CHG-2026-0007", "INC0010007"], "answerable": true, "role": "it-staff", "prompt": "qa", "tags": ["change"]}
 {"id": "q37", "question": "What happened with the access token that was committed to a repo?", "expected": ["PM-2026-04", "INC0010004", "HELP-1052"], "answerable": true, "role": "security", "prompt": "incident_summary", "tags": ["security"]}
 {"id": "q38", "question": "How do I sign in with the break-glass account?", "expected": ["RB-IDM-003"], "answerable": true, "role": "security", "prompt": "runbook_steps", "tags": ["security"]}
 {"id": "u01", "question": "How do I upgrade our Kubernetes cluster to version 1.31?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "qa", "tags": ["unanswerable"]}
