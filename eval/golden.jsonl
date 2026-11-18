@@ -64,3 +64,4 @@
 {"id": "hu3", "question": "How do I rotate the Okta SAML signing certificate?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "runbook_steps", "tags": ["unanswerable", "near-miss"], "split": "test"}
 {"id": "hu4", "question": "What is the Wi-Fi password for the Tokyo office?", "expected": [], "answerable": false, "role": "public", "prompt": "qa", "tags": ["unanswerable", "near-miss"], "split": "dev"}
 {"id": "hu5", "question": "How do I recover the disk encryption key on a Linux laptop?", "expected": [], "answerable": false, "role": "it-staff", "prompt": "troubleshoot", "tags": ["unanswerable", "near-miss"], "split": "dev"}
+{"id": "h17", "question": "Autopilot fails with 0x80180014 on a new laptop", "expected": ["RB-WIN-001", "VND-002", "HELP-1009", "HELP-1019", "HELP-1037", "HELP-1055", "INC0010006"], "answerable": true, "role": "it-staff", "prompt": "troubleshoot", "tags": ["hard", "code", "regression"], "split": "dev"}

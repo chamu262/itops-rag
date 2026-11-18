@@ -25,7 +25,7 @@ CORPUS = ROOT / "data" / "demo" / "kestrel-cloud"
 GOLDEN = ROOT / "eval" / "golden.jsonl"
 
 ROUND1 = {"product_gate": False}
-FINAL = {"split_ticket_comments": True, "candidates": 20}  # round-2 winners (product gate is on by default)
+FINAL = {"split_ticket_comments": True, "candidates": 30}  # shipped: product gate + ticket split, pool 30
 VARIANTS: dict[str, dict[str, Any]] = {
     "round1": dict(ROUND1),
     "product_gate": {},
@@ -39,6 +39,10 @@ VARIANTS: dict[str, dict[str, Any]] = {
     "final+merge_300": {**FINAL, "min_section_chars": 300},
     "final+L12": {**FINAL, "rerank_model": "Xenova/ms-marco-MiniLM-L-12-v2"},
     "final+jina_turbo": {**FINAL, "rerank_model": "jinaai/jina-reranker-v1-turbo-en"},
+    # round 2b: pool spread across documents (found by tracing a realistic Autopilot question)
+    "final_pool20": {**FINAL, "candidates": 20},
+    "final_spread1": {**FINAL, "pool_chunks_per_doc": 1},
+    "final_spread2": {**FINAL, "pool_chunks_per_doc": 2},
 }
 BUILD_KEYS = ("chunk_size", "chunk_overlap", "min_section_chars", "table_rows", "split_ticket_comments")
 

@@ -70,6 +70,7 @@ class HybridRetriever:
         keyword_weight: float = 1.0,
         vector_weight: float = 1.0,
         max_chunks_per_doc: int = 2,
+        pool_chunks_per_doc: int = 0,
     ) -> None:
         self.docs = docs
         self.vectors = vectors
@@ -79,6 +80,7 @@ class HybridRetriever:
         self.keyword_weight = keyword_weight
         self.vector_weight = vector_weight
         self.max_chunks_per_doc = max_chunks_per_doc
+        self.pool_chunks_per_doc = pool_chunks_per_doc
 
     def search(
         self,
@@ -118,7 +120,19 @@ class HybridRetriever:
                 [self.vector_weight, keyword_weight_for(query, self.keyword_weight)],
             )
 
-        pool = fused[: n if mode == "hybrid_rerank" else max(k * 3, k)]
+        limit = n if mode == "hybrid_rerank" else max(k * 3, k)
+        if self.pool_chunks_per_doc > 0:
+            # Spread the candidate pool across documents: without this, a few long tickets (core + comments
+            # chunks, each matching the same error code) can fill every slot and push the runbook out unseen.
+            per_doc: dict[str, int] = defaultdict(int)
+            spread: list[tuple[str, float]] = []
+            for cid, score in fused:
+                doc = cid.rsplit("#", 1)[0]
+                if per_doc[doc] < self.pool_chunks_per_doc:
+                    per_doc[doc] += 1
+                    spread.append((cid, score))
+            fused = spread
+        pool = fused[:limit]
         chunks = self.docs.get_chunks([cid for cid, _ in pool])
         hits = [
             Hit(chunk=chunks[cid], score=score, vector_rank=vec_rank.get(cid), keyword_rank=kw_rank.get(cid))
