@@ -6,10 +6,10 @@ Every knob has a safe default, so ``Settings()`` works with no configuration at 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 StoreKind = Literal["auto", "sqlite", "chroma"]
 SearchMode = Literal["vector", "keyword", "hybrid", "hybrid_rerank"]
@@ -52,14 +52,23 @@ class Settings(BaseSettings):
     audience: str = "the IT operations team"
 
     # Access
-    default_role: str = "it-staff"
+    default_role: Literal["public", "it-staff", "security"] = "it-staff"
+    """Role for the CLI, the library and the MCP server (fixed per process)."""
+    default_access: Literal["public", "it-staff", "security"] = "it-staff"
+    """Access tag for documents that don't declare one. Fail closed: not ``public``."""
+    web_default_role: Literal["public", "it-staff", "security"] = "public"
+    """Role for web requests that don't carry a verified role header."""
+    role_header_secret: str = ""
+    """If set, the web app trusts ``X-ITOPS-Role`` only when ``X-ITOPS-Proxy-Secret`` matches (your SSO proxy sets
+    both and strips any client-sent copies). If empty, the role header is ignored entirely."""
 
     # Generation (Claude)
     answer_model: str = "claude-opus-5-5"
     fast_model: str = "claude-haiku-5-5"
     """Used for cheap steps: query rewriting, ticket triage labels, the faithfulness check."""
     effort: Effort = "medium"
-    max_tokens: int = 4096
+    max_tokens: int = 8192
+    """Includes thinking tokens (Opus 5.5 always thinks); you pay only for what is generated."""
     server_fallbacks: bool = True
     """Send ``fallbacks: "default"`` so a safety-classifier decline is retried on a fallback model in the same call."""
     rewrite_queries: bool = False
@@ -71,14 +80,27 @@ class Settings(BaseSettings):
 
     # Redaction at ingest
     redact: bool = True
-    redact_keep_emails: list[str] = Field(
-        default_factory=lambda: [r"^(servicedesk|it-oncall|security|noreply)@"]
+    redact_keep_emails: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [r"^(servicedesk|it-oncall|security|noreply)@kestrelcloud\.example$"]
     )
     """Regexes for addresses that are functional mailboxes, not people. They are kept."""
 
     # Prompt packs
-    prompt_dirs: list[Path] = Field(default_factory=list)
+    prompt_dirs: Annotated[list[Path], NoDecode] = Field(default_factory=list)
     """Extra folders of prompt YAML files, loaded after the built-in packs (same id overrides)."""
+
+    @field_validator("prompt_dirs", "redact_keep_emails", mode="before")
+    @classmethod
+    def _split_list(cls, value: Any) -> Any:
+        """Accept a JSON list, or a comma-separated string, from environment variables."""
+        if isinstance(value, str):
+            text = value.strip()
+            if text.startswith("["):
+                import json
+
+                return json.loads(text)
+            return [part.strip() for part in text.split(",") if part.strip()]
+        return value
 
     def resolved_store(self) -> Literal["sqlite", "chroma"]:
         if self.store != "auto":
