@@ -86,13 +86,18 @@ class Chunk:
     heading: str = ""
     """Breadcrumb of section headings, e.g. ``Steps > Re-enrol``."""
     meta: dict[str, Any] = field(default_factory=dict)
+    questions: list[str] = field(default_factory=list)
+    """Optional doc2query enrichment: questions this chunk answers, indexed but never shown to the model."""
 
     @property
     def embed_text(self) -> str:
         """Text that is embedded and keyword-indexed: title and heading on top give each chunk its context."""
         title = self.meta.get("title", "")
         head = f"{title} > {self.heading}" if self.heading else title
-        return f"{head}\n{self.text}" if head else self.text
+        body = f"{head}\n{self.text}" if head else self.text
+        if self.questions:
+            body += "\nQuestions this answers:\n" + "\n".join(self.questions)
+        return body
 
 
 @dataclass(slots=True)

@@ -13,14 +13,17 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import threading
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+from functools import cache
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
 from itops_rag.config import SearchMode, Settings
-from itops_rag.core.chunking import CHUNKER_VERSION, chunk_document, join_overlapping
+from itops_rag.core.chunking import CHUNKER_VERSION, ChunkOptions, chunk_document, join_overlapping
 from itops_rag.core.embeddings import Embedder, FastEmbedder
 from itops_rag.core.generate import Generator, MessagesClient, gate
 from itops_rag.core.models import Answer, Chunk, Document, Hit, visible_access
@@ -33,6 +36,15 @@ from itops_rag.stores.docstore import DocStore
 from itops_rag.stores.vectors import ChromaVectorStore, SqliteVectorStore, VectorStore
 
 log = logging.getLogger(__name__)
+
+
+@cache
+def known_products() -> frozenset[str]:
+    text = (resources.files("itops_rag.core") / "products.txt").read_text(encoding="utf-8")
+    return frozenset(w.strip() for w in text.splitlines() if w.strip() and not w.startswith("#"))
+
+
+_WORD = re.compile(r"[a-z0-9]+")
 
 
 class IndexMismatchError(RuntimeError):
@@ -85,9 +97,17 @@ class Index:
         self._lock = threading.RLock()
         # Anything that changes what gets stored for the same source text. It is folded into every stored document
         # hash, so changing chunk size or redaction patterns re-processes documents instead of silently skipping them.
+        self.chunk_options = ChunkOptions(
+            size=settings.chunk_size,
+            overlap=settings.chunk_overlap,
+            min_section_chars=settings.min_section_chars,
+            table_rows=settings.table_rows,
+            split_ticket_comments=settings.split_ticket_comments,
+        )
         self.fingerprint = (
-            f"chunker={CHUNKER_VERSION};size={settings.chunk_size};overlap={settings.chunk_overlap};"
-            f"redaction={REDACTION_VERSION};redact={settings.redact};keep={','.join(settings.redact_keep_emails)}"
+            f"chunker={CHUNKER_VERSION};{self.chunk_options!r};"
+            f"redaction={REDACTION_VERSION};redact={settings.redact};keep={','.join(settings.redact_keep_emails)};"
+            f"doc2query={settings.doc2query and settings.fast_model}x{settings.doc2query_per_chunk}"
         )
         self.retriever = HybridRetriever(
             docs,
@@ -213,7 +233,7 @@ class Index:
                     report.added += 1
                 else:
                     report.updated += 1
-                chunks = chunk_document(doc, self.settings.chunk_size, self.settings.chunk_overlap)
+                chunks = chunk_document(doc, options=self.chunk_options)
                 pending.append((doc, chunks))
                 if sum(len(c) for _, c in pending) >= batch_size:
                     report.chunks += self._flush(pending)
@@ -233,7 +253,32 @@ class Index:
             self.docs.commit()
             return report
 
+    def _enrich(self, doc: Document, chunks: list[Chunk]) -> None:
+        """doc2query, cached by chunk content so re-ingests never pay twice."""
+        if not chunks or doc.doc_type == "ticket":
+            return
+        keys = [
+            hashlib.sha256(
+                f"{self.settings.fast_model}|{self.settings.doc2query_per_chunk}|{c.embed_text}".encode()
+            ).hexdigest()[:24]
+            for c in chunks
+        ]
+        cached = [self.docs.cached_questions(k) for k in keys]
+        missing = [i for i, q in enumerate(cached) if q is None]
+        if missing:
+            fresh = self.generator.generate_questions(
+                doc.title, [chunks[i].text for i in missing], self.settings.doc2query_per_chunk
+            )
+            for i, qs in zip(missing, fresh, strict=True):
+                cached[i] = qs
+                self.docs.cache_questions(keys[i], qs)
+        for c, maybe in zip(chunks, cached, strict=True):
+            c.questions = list(maybe or [])
+
     def _flush(self, pending: list[tuple[Document, list[Any]]]) -> int:
+        if self.settings.doc2query:
+            for doc, chunks in pending:
+                self._enrich(doc, chunks)
         all_chunks = [c for _, chunks in pending for c in chunks]
         vectors = self.embedder.embed_documents([c.embed_text for c in all_chunks])
         offset = 0
@@ -303,6 +348,20 @@ class Index:
                 mode,
                 self.settings.doc_type_boost if doc_type_boost is None else doc_type_boost,
             )
+
+    def precheck(self, question: str, role: str | None = None) -> str | None:
+        """Free refusal before retrieval: the question names a known IT product (Okta, Chromebook, Linux…) that no
+        document visible to this role mentions anywhere. Retrieval would still return its nearest neighbours (the
+        other SAML runbook, the Windows enrolment guide), and they score as high as real matches."""
+        if not self.settings.product_gate:
+            return None
+        named = sorted(set(_WORD.findall(question.lower())) & known_products())
+        access = visible_access(role or self.settings.default_role)
+        with self._lock:
+            missing = [p for p in named if not self.docs.keyword_search(p, 1, access)]
+        if missing:
+            return f"no indexed document mentions {', '.join(missing)}"
+        return None
 
     def boosts_for(self, template_boost: dict[str, float] | None) -> dict[str, float]:
         return {**self.settings.doc_type_boost, **(template_boost or {})}
@@ -404,6 +463,7 @@ class Index:
             question,
             self.expand(hits),
             template,
+            precheck=self.precheck(question, role),
             input_text=input_text,
             dry_run=dry_run,
             assistant_name=assistant_name or self.settings.assistant_name,
@@ -441,6 +501,7 @@ class Index:
             question,
             hits,
             template,
+            precheck=self.precheck(question, role),
             input_text=input_text,
             dry_run=True,
             assistant_name=self.settings.assistant_name,

@@ -32,11 +32,18 @@ class Settings(BaseSettings):
     # Chunking
     chunk_size: int = 800
     chunk_overlap: int = 100
+    min_section_chars: int = 0
+    """Merge heading sections shorter than this into a neighbour (0 = off). Measured mixed in calibration."""
+    table_rows: bool = False
+    """Index each Markdown table row as its own chunk (header repeated). Opt-in: in round-2 calibration it fixed one
+    dev question and broke one held-out question, so it is not a default (see docs/review.md)."""
+    split_ticket_comments: bool = True
+    """Tickets: summary + resolution + description in one chunk, comments in their own chunks."""
 
     # Retrieval
     mode: SearchMode = "hybrid_rerank"
     top_k: int = 4
-    candidates: int = 30
+    candidates: int = 20
     """How many chunks each retriever returns before fusion, and how many go to the reranker."""
     keyword_weight: float = 1.0
     vector_weight: float = 1.0
@@ -56,6 +63,8 @@ class Settings(BaseSettings):
     """Documents shorter than this are given to the model whole; longer ones by section."""
     min_rerank_score: float = -2.0
     """Refuse locally (no API call) when the best cross-encoder score is below this. Tuned with ``itops-rag eval``."""
+    product_gate: bool = True
+    """Refuse locally when the question names a known IT product that no visible document mentions."""
     min_vector_similarity: float = 0.30
     """Refusal gate used when reranking is off."""
 
@@ -84,6 +93,10 @@ class Settings(BaseSettings):
     server_fallbacks: bool = True
     """Send ``fallbacks: "default"`` so a safety-classifier decline is retried on a fallback model in the same call."""
     rewrite_queries: bool = False
+    doc2query: bool = False
+    """At ingest, ask the fast model for questions each non-ticket chunk answers and index them with the chunk
+    (helps paraphrased questions). One cached call per document: a few cents for the demo corpus."""
+    doc2query_per_chunk: int = 3
     verify_answers: bool = True
     """A Haiku faithfulness check per answer (under $0.001). Off with ITOPS_RAG_VERIFY_ANSWERS=false."""
 

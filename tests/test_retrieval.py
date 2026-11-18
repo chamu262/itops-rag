@@ -247,3 +247,50 @@ def test_get_document_hides_server_paths(index: Index, tmp_path: Path) -> None:
     index.ingest_path(tmp_path)
     d = index.get_document("N-1", role="public")
     assert d is not None and "ingest_root" not in d["extra"]
+
+
+def test_hyphenated_words_match_their_parts_but_codes_stay_whole(index: Index) -> None:
+    from itops_rag import Document
+    from itops_rag.stores.docstore import fts_query
+
+    index.ingest(
+        [Document(id="OC-9", title="Rota", access="it-staff", text="The L2 on-call service for Jamf.")]
+    )
+    assert index.search("who is on call", k=3, mode="keyword")[0].doc_id == "OC-9"
+    assert '"mg-401"' in fts_query("MG-401") and '"mg"' not in fts_query("MG-401")
+
+
+def test_product_gate_refuses_unknown_products_only(index: Index) -> None:
+    assert index.precheck("How do I rotate the Okta SAML certificate?") is not None
+    assert index.precheck("MeshGate MG-401 after the macOS update") is None
+    index.settings.product_gate = False
+    assert index.precheck("How do I rotate the Okta SAML certificate?") is None
+
+
+def test_system_names_are_normalised() -> None:
+    from itops_rag.loaders.common import normalise_system
+
+    assert normalise_system("Entra ID") == "entra"
+    assert normalise_system("Intune / Autopilot") == "intune"
+    assert normalise_system("Google Workspace") == "gws"
+    assert normalise_system("") == "general"
+    assert normalise_system("Endpoint") == "endpoint"
+
+
+def test_doc2query_enrichment_is_cached(settings: Settings) -> None:
+    from itops_rag import Document
+    from tests.conftest import FakeClient
+
+    client = FakeClient('{"1": ["why does the vpn fail", "vpn not authorised"]}')
+    settings.doc2query = True
+    ix = Index.open(settings, embedder=HashEmbedder(), reranker=False, client=client)
+    doc = Document(id="RB-1", title="VPN", text="Run meshgate reauth.", access="it-staff")
+    ix.ingest([doc])
+    assert len(client.messages.calls) == 1
+    assert ix.search("vpn not authorised", k=1, mode="keyword")[0].doc_id == "RB-1"
+    ix.settings.chunk_size = 700  # force a re-chunk: same chunk text, so the cache answers
+    ix2 = Index.open(ix.settings, embedder=HashEmbedder(), reranker=False, client=client)
+    ix2.ingest([Document(id="RB-1", title="VPN", text="Run meshgate reauth.", access="it-staff")])
+    assert len(client.messages.calls) == 1
+    ix.close()
+    ix2.close()
