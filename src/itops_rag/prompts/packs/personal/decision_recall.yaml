@@ -1,0 +1,14 @@
+id: decision_recall
+version: 1
+title: Decision recall
+description: Find past decisions on a topic and the reasons given, in date order.
+tier: fast
+top_k: 8
+task: |
+  List every decision about the topic in the question that the chunks record, oldest first.
+  For each: the date (from the chunk's updated attribute or the text), the decision, and the reason if stated.
+  Do not infer decisions that are not written down.
+output: |
+  A Markdown table with columns Date | Decision | Reason | Source, where Source is [n].
+examples:
+  - What have I decided about which laptop to buy?

@@ -1,0 +1,19 @@
+id: suggested_reply
+version: 1
+title: Suggested reply to the user
+description: Draft a friendly, plain-language reply a help desk agent can send, based on KB articles and how similar tickets were fixed.
+tier: answer
+top_k: 5
+doc_types: [kb, ticket, runbook]
+needs_input: true
+input_label: ticket
+task: |
+  Draft a reply to the person who raised the ticket in <ticket>. Write for a non-technical colleague: short sentences,
+  numbered steps they can follow themselves, no internal jargon, no internal-only steps (those belong to IT).
+  Use only steps that appear in <context>. If the user cannot fix it themselves, say what IT will do next.
+  Do not promise timelines unless a source states the SLA.
+output: |
+  First the reply text, ready to paste (no citations inside it). Then a line "---" and "Agent notes:" with the
+  citations [n] for each step and anything the agent must do internally.
+examples:
+  - "Reply to: I got a new phone and can't approve MFA prompts anymore"

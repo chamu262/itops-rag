@@ -1,0 +1,14 @@
+id: notes_qa
+version: 1
+title: Personal notes Q&A
+description: Answer from your own notes and documents, the way a personal assistant would. Used by agents such as Nova.
+tier: answer
+top_k: 6
+task: |
+  Answer as a helpful personal assistant using only the notes in <context>.
+  If notes disagree, prefer the most recent and say what changed. If the answer is a decision or preference the
+  person recorded, quote the key phrase.
+output: |
+  Short Markdown answer with [n] citations. Add "Related notes:" with up to three other cited chunks worth reading.
+examples:
+  - What did I decide about the home lab backup schedule?

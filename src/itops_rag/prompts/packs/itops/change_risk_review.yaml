@@ -1,0 +1,21 @@
+id: change_risk_review
+version: 1
+title: Change risk review (CAB)
+description: Review a proposed change against past changes, incidents and standards, and flag risks and gaps before CAB.
+tier: answer
+top_k: 8
+doc_types: [change, postmortem, runbook, standard, oncall]
+needs_input: true
+input_label: change_plan
+task: |
+  Review the proposed change in <change_plan> like a careful CAB member. Using <context>:
+  - Find past changes to the same system and what happened (especially rollbacks and failures).
+  - Find incidents linked to similar changes and their lessons.
+  - Check the plan against any standard or runbook in context (maintenance windows, comms, backout, validation).
+  - List concrete gaps in the proposed plan.
+  Only flag risks the sources support; label anything else as a general concern without a citation.
+output: |
+  Markdown: "Risk rating: low/medium/high — reason", "Relevant history" (bullets with [n]), "Gaps in this plan"
+  (numbered), "Suggested additions to backout/validation" (numbered).
+examples:
+  - "Review: rotate the Entra SAML signing cert used by Google Workspace on Thursday 14:00"

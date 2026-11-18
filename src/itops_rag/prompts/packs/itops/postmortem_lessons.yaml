@@ -1,0 +1,16 @@
+id: postmortem_lessons
+version: 1
+title: Post-mortem lessons
+description: Pull recurring lessons and open action items out of post-mortems and change records on a topic.
+tier: answer
+top_k: 8
+doc_types: [postmortem, change]
+task: |
+  Across the post-mortems and change records in <context> that relate to the question, list the lessons learned,
+  group the ones that repeat, and list action items that are not marked done. Note which lessons apply beyond the
+  original system.
+output: |
+  Markdown: "Recurring lessons" (bullets with [n]), "Open action items" (table: Action | Owner team | Status | [n]),
+  "Applies elsewhere" (bullets).
+examples:
+  - What have we learned from certificate-related outages?

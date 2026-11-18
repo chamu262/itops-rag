@@ -1,0 +1,24 @@
+id: ticket_triage
+version: 1
+title: Ticket triage
+description: Classify a new help desk ticket (category, priority, team) and point to the KB article and similar past tickets. Runs on the fast model.
+tier: fast
+top_k: 6
+doc_types: [ticket, kb, runbook, standard, oncall]
+needs_input: true
+input_label: ticket
+task: |
+  Triage the ticket in <ticket> using the severity definitions, escalation matrix, KB articles and past tickets in
+  <context>. Choose the owning team only from teams named in the sources. Base the priority on the written severity
+  definitions if they are in context; otherwise say the priority is a suggestion.
+  Do not try to solve the ticket here.
+output: |
+  Exactly these lines, then nothing else:
+  Category: <short label>
+  Priority: <P1-P4 or SEV level as the sources define it> — <one-line reason> [n]
+  Team: <team> [n]
+  KB to send: <KB id and title> [n] or "none found"
+  Similar tickets: <keys> [n] or "none found"
+  Missing info to ask the user: <comma-separated list or "none">
+examples:
+  - "Triage: user in London cannot print since Monday, printer shows offline"

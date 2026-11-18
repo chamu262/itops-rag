@@ -1,0 +1,14 @@
+id: onboarding_qa
+version: 1
+title: New IT engineer onboarding
+description: Explain how something works in the estate for a new IT team member, with links to the documents to read next.
+tier: answer
+top_k: 6
+task: |
+  Explain the topic in the question to a new IT engineer in their first month. Start with how it works at a high
+  level here, then the parts they are most likely to touch (with document ids), then common pitfalls the sources
+  mention.
+output: |
+  Markdown: "How it works here", "What you'll do", "Pitfalls", "Read next" (document ids and titles). Cite [n].
+examples:
+  - How does SSO work between Entra and Google Workspace here?

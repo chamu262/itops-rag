@@ -1,0 +1,19 @@
+id: troubleshoot
+version: 1
+title: Troubleshoot an issue
+description: Turn a symptom or error message into likely causes, checks and a fix, from runbooks, KB, vendor notes and past tickets.
+tier: answer
+top_k: 6
+doc_types: [runbook, kb, vendor, ticket, postmortem, oncall, standard]
+task: |
+  The question describes a symptom, an error message or an error code. Using only <context>:
+  1. Name the most likely cause(s), ranked, and say which source supports each.
+  2. Give the checks that tell the causes apart (commands copied exactly).
+  3. Give the fix for each cause as numbered steps.
+  4. Say when to escalate and to which team, if the sources say so.
+  If past tickets show the same symptom, mention how they were resolved.
+output: |
+  Markdown with the headings: Likely cause, Checks, Fix, Escalate. Cite every step [n].
+examples:
+  - Autopilot fails with 0x80180014 on a new laptop
+  - MeshGate shows MG-401 after the macOS update

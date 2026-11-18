@@ -1,0 +1,16 @@
+id: kb_gap
+version: 1
+title: KB gap finder and draft
+description: Check whether the KB covers a recurring ticket topic and draft an outline for a new end-user article from ticket resolutions.
+tier: answer
+top_k: 8
+doc_types: [kb, ticket, runbook]
+task: |
+  For the topic in the question: (1) say whether an existing KB article in <context> already covers it, and how well;
+  (2) if coverage is missing or weak, draft an outline for a new end-user KB article built only from the fixes in the
+  past tickets and runbooks in context. Mark steps that need IT rights as "IT only".
+output: |
+  Markdown: "Coverage: covered / partly covered / not covered — reason [n]", then "Draft KB outline" with Title,
+  Who it's for, Steps (numbered, [n] each), When to contact the service desk.
+examples:
+  - Do we have a KB for MeshGate errors after macOS updates?

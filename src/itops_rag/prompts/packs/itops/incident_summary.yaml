@@ -1,0 +1,16 @@
+id: incident_summary
+version: 1
+title: Incident summary
+description: Summarise an incident for stakeholders from post-mortems, change records and on-call notes.
+tier: answer
+top_k: 6
+doc_types: [postmortem, change, oncall, runbook]
+task: |
+  Write a stakeholder summary of the incident the question names. State what happened, who and what was affected,
+  how long it lasted, the root cause, and the status of the action items, all from <context>.
+  Use UTC times exactly as written. If the incident is not in the sources, say so.
+output: |
+  Markdown with headings: Summary (3 sentences max), Impact, Timeline (bullets), Root cause, Action items
+  (table: Action | Owner team | Status). Cite [n].
+examples:
+  - Summarise the Google Workspace SSO outage after the certificate rotation

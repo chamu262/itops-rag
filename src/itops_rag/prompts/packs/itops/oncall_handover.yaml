@@ -1,0 +1,16 @@
+id: oncall_handover
+version: 1
+title: On-call handover
+description: Draft an on-call handover for a system or the whole rota from known issues, recent changes and incidents.
+tier: answer
+top_k: 8
+doc_types: [oncall, change, postmortem, runbook]
+task: |
+  Draft an on-call handover for the scope in the question, following the handover template if it is in <context>.
+  Include known issues and their workarounds, changes recently implemented or rolled back, open incident actions,
+  and the escalation contacts (team names only).
+output: |
+  The handover in the template's own sections if present; otherwise: Known issues, Recent changes, Watch items,
+  Escalation. Cite [n].
+examples:
+  - Handover for the MeshGate VPN and identity area this week

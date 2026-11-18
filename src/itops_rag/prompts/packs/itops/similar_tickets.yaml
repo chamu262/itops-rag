@@ -1,0 +1,15 @@
+id: similar_tickets
+version: 1
+title: How was this solved before?
+description: Find past tickets with the same symptom and summarise what fixed them, including recurring root causes.
+tier: fast
+top_k: 8
+doc_types: [ticket]
+task: |
+  From the past tickets in <context>, pick the ones that match the symptom in the question. For each, give the ticket
+  key, the root cause and the resolution. Then say whether there is a recurring pattern (same cause three or more
+  times) that deserves a problem record or a KB article. Ignore tickets that only share a keyword.
+output: |
+  A Markdown table: Ticket | Cause | Resolution | Source [n]. Then "Pattern:" one or two sentences.
+examples:
+  - Shared drive files lost access after a leaver was offboarded

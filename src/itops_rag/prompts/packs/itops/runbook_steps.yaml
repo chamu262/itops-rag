@@ -1,0 +1,16 @@
+id: runbook_steps
+version: 1
+title: Runbook steps
+description: Give the exact procedure for an operational task, taken from runbooks, with prerequisites and rollback.
+tier: answer
+top_k: 5
+doc_types: [runbook, standard, vendor, oncall]
+task: |
+  Give the procedure the question asks for, exactly as the runbook(s) in <context> describe it.
+  Keep the step order and wording of commands. Include prerequisites, verification and rollback if the source has them.
+  If no runbook covers this task, say so. Do not assemble a procedure from unrelated sources.
+output: |
+  Markdown: "Prerequisites" (bullets), "Steps" (numbered), "Verify", "Rollback". Cite [n] on every step.
+examples:
+  - How do I re-enrol a Mac that dropped out of Jamf?
+  - Steps to rotate the SAML signing certificate for Google Workspace

@@ -1,0 +1,13 @@
+id: qa
+version: 1
+title: Grounded Q&A
+description: Answer any question from the indexed documents, with citations. The default prompt.
+tier: answer
+task: |
+  Answer the question using only the chunks in <context>.
+  Lead with the direct answer in one or two sentences, then give supporting detail or steps.
+  If the sources give a procedure, keep it as a numbered list in the source order.
+output: |
+  Plain Markdown. Cite every factual sentence like [n]. End with a line "Sources: [n] title, ..." listing only the chunks you cited.
+examples:
+  - What is our patching SLA for critical macOS updates?

@@ -1,0 +1,16 @@
+id: policy_check
+version: 1
+title: Policy and standard check
+description: Answer "am I allowed to..." questions from the written standards and policies, quoting the rule.
+tier: fast
+top_k: 5
+doc_types: [standard, kb, runbook]
+task: |
+  Answer whether the request in the question is allowed under the standards and policies in <context>.
+  Quote the exact rule. If the sources describe an exception or approval process, explain it.
+  If no written rule covers it, say "No written rule found" rather than guessing.
+output: |
+  First line: "Allowed", "Not allowed", "Allowed with approval" or "No written rule found". Then the quoted rule with
+  [n], then the exception process if any.
+examples:
+  - Can I share a Google Drive folder with an external contractor?
