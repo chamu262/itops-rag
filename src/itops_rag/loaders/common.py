@@ -24,6 +24,50 @@ def split_front_matter(text: str) -> tuple[dict[str, Any], str]:
     return data, text[m.end() :]
 
 
+# Exports name the same system many ways ("Entra ID", "Azure AD", "Intune / Autopilot"). One canonical name per
+# system keeps the --system filter and per-system stats honest. Unknown names pass through, lower-cased.
+SYSTEM_ALIASES: dict[str, str] = {
+    "entra id": "entra",
+    "azure ad": "entra",
+    "aad": "entra",
+    "identity": "entra",
+    "microsoft entra": "entra",
+    "google workspace": "gws",
+    "g suite": "gws",
+    "gmail": "email",
+    "mail": "email",
+    "jamf pro": "jamf",
+    "jamf / macos": "jamf",
+    "jamf connect": "jamf",
+    "intune / windows": "intune",
+    "intune / autopilot": "intune",
+    "autopilot": "intune",
+    "microsoft intune": "intune",
+    "wi-fi": "network",
+    "wifi": "network",
+    "printing": "network",
+    "printers": "network",
+    "vpn": "meshgate",
+    "meshgate vpn": "meshgate",
+    "lost / stolen device": "security",
+    "phishing": "security",
+    "joiner / leaver": "general",
+    "onboarding": "general",
+    "offboarding": "general",
+}
+
+
+def normalise_system(value: str) -> str:
+    """``"Intune / Autopilot"`` -> ``"intune"``; ``"Entra ID"`` -> ``"entra"``; unknown -> lower-cased as is."""
+    key = " ".join(value.strip().lower().split())
+    if not key:
+        return "general"
+    if key in SYSTEM_ALIASES:
+        return SYSTEM_ALIASES[key]
+    first = key.split("/")[0].strip()
+    return SYSTEM_ALIASES.get(first, first if "/" in key else key)
+
+
 def slug(path: Path) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "-", path.stem).strip("-").upper() or "DOC"
 
@@ -69,7 +113,7 @@ def make_document(
         title=as_str(meta.get("title")) or default_title or path.stem.replace("-", " ").replace("_", " "),
         text=text.strip(),
         doc_type=as_str(meta.get("doc_type")) or default_type,
-        system=as_str(meta.get("system")) or "general",
+        system=normalise_system(as_str(meta.get("system"))),
         owner=as_str(meta.get("owner")),
         access=access,
         updated=as_str(meta.get("updated")),
