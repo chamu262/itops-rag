@@ -291,7 +291,7 @@ def serve(
     port: Annotated[int, typer.Option()] = 8080,
     index: IndexOpt = None,
 ) -> None:
-    """Run the web UI and JSON API (needs the [web] extra)."""
+    """Run the web UI and JSON API (needs the \\[web] extra)."""
     import uvicorn
 
     from itops_rag.interfaces.web import create_app
@@ -301,7 +301,7 @@ def serve(
 
 @app.command()
 def mcp(index: IndexOpt = None) -> None:
-    """Run the read-only MCP server on stdio (needs the [mcp] extra)."""
+    """Run the read-only MCP server on stdio (needs the \\[mcp] extra)."""
     from itops_rag.interfaces.mcp_server import build_server
 
     build_server(_settings(index)).run("stdio")

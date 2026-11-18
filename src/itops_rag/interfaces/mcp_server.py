@@ -17,6 +17,7 @@ can't ask for more access than the server was started with.
 from __future__ import annotations
 
 import os
+import threading
 from typing import Any
 
 from itops_rag.config import Settings
@@ -31,12 +32,14 @@ def build_server(settings: Settings | None = None, index: Index | None = None) -
     allow_answers = os.environ.get("ITOPS_RAG_MCP_ALLOW_ANSWERS", "false").lower() in {"1", "true", "yes"}
     role = settings.default_role
     state: dict[str, Index] = {}
+    init_lock = threading.Lock()
 
     def ix() -> Index:
         if index is not None:
             return index
-        if "ix" not in state:
-            state["ix"] = Index.open(settings)
+        with init_lock:
+            if "ix" not in state:
+                state["ix"] = Index.open(settings)
         return state["ix"]
 
     server = MCPServer(

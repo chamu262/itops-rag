@@ -1,8 +1,9 @@
 """Price table, per-answer cost, and a JSONL ledger with a monthly budget cap.
 
 Prices are USD per million tokens (first-party Claude API, November 2026). Cache reads bill at the listed read price
-and cache writes (5-minute TTL) at 1.25x input. Update ``PRICES`` when list prices change; unknown models cost 0 and
-log a warning instead of guessing.
+and cache writes (5-minute TTL) at 1.25x input. Update ``PRICES`` when list prices change. Previous-generation models
+are listed because server-side fallbacks can serve an answer from them. An unknown model is charged at the most
+expensive listed price (and logged), so the budget cap errs on the safe side.
 """
 
 from __future__ import annotations
@@ -30,7 +31,12 @@ PRICES: dict[str, Price] = {
     "claude-sonnet-5-5": Price(2.00, 10.00, 0.10),
     "claude-haiku-5-5": Price(0.10, 0.50, 0.01),
     "claude-fable-5-2": Price(8.00, 40.00, 0.20),
+    # possible fallback targets
+    "claude-opus-5": Price(5.00, 25.00, 0.50),
+    "claude-opus-4-8": Price(5.00, 25.00, 0.50),
+    "claude-sonnet-5": Price(2.00, 10.00, 0.20),
 }
+_MOST_EXPENSIVE = max(PRICES.values(), key=lambda p: p.output)
 
 
 def cost_usd(
@@ -38,8 +44,8 @@ def cost_usd(
 ) -> float:
     p = PRICES.get(model)
     if p is None:
-        log.warning("no price for model %s; cost recorded as 0", model)
-        return 0.0
+        log.warning("no price for model %s; charging the highest listed price", model)
+        p = _MOST_EXPENSIVE
     return (
         input_tokens * p.input
         + output_tokens * p.output

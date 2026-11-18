@@ -40,9 +40,12 @@ def gate(hits: Sequence[Hit], settings: Settings) -> str | None:
         if best.rerank_score < settings.min_rerank_score:
             return f"best match scored {best.rerank_score:.2f}, below the relevance threshold {settings.min_rerank_score}"
         return None
-    sim = best.chunk.meta.get("vector_similarity")
-    if sim is not None and float(sim) < settings.min_vector_similarity and best.keyword_rank is None:
-        return f"best match similarity {float(sim):.2f} is below {settings.min_vector_similarity}"
+    # Without a reranker, use the best vector similarity among the hits. A keyword match alone is not enough:
+    # any shared word produces one, so it would let almost everything through.
+    sims = [float(s) for h in hits if (s := h.chunk.meta.get("vector_similarity")) is not None]
+    best_sim = max(sims, default=0.0)
+    if best_sim < settings.min_vector_similarity:
+        return f"best match similarity {best_sim:.2f} is below {settings.min_vector_similarity}"
     return None
 
 

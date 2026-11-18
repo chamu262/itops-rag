@@ -65,15 +65,17 @@ def build_context(hits: Sequence[Hit]) -> tuple[str, list[int]]:
     return "\n".join(parts), suspicious
 
 
-_CITE = re.compile(r"\[(\d+(?:\s*[,;]\s*\d+)*)\]")
+_CITE = re.compile(r"\[(\d+(?:\s*[-–,;]\s*\d+)*)\]")
 
 
 def extract_citations(text: str) -> list[int]:
-    """All chunk numbers cited as ``[1]``, ``[2, 3]`` or ``[2; 3]``, in first-seen order."""
+    """All chunk numbers cited as ``[1]``, ``[2, 3]``, ``[2; 3]`` or ``[1-3]``, in first-seen order."""
     seen: list[int] = []
     for m in _CITE.finditer(text):
         for part in re.split(r"[,;]", m.group(1)):
-            n = int(part.strip())
-            if n not in seen:
-                seen.append(n)
+            lo, _, hi = part.replace("–", "-").partition("-")
+            start, end = int(lo.strip()), int((hi or lo).strip())
+            for n in range(start, min(end, start + 50) + 1):
+                if n not in seen:
+                    seen.append(n)
     return seen

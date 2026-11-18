@@ -1,10 +1,13 @@
 """FastAPI app: a one-page chat UI with citations, plus a JSON API.
 
-Auth is out of scope for the demo: run it on localhost or behind your SSO proxy. The role comes from a trusted
-header set by that proxy (``X-ITOPS-Role``) and falls back to the server's default role; it is never read from the
-request body.
+Auth is out of scope for the demo: run it on localhost or behind your SSO proxy. Requests get
+``web_default_role`` (``public``). A higher role is accepted only from ``X-ITOPS-Role`` when the request also carries
+``X-ITOPS-Proxy-Secret`` equal to ``ITOPS_RAG_ROLE_HEADER_SECRET``: your proxy sets both after authenticating the user,
+and must strip any copies the client sent. With no secret configured, the role header is ignored.
 """
 
+import hmac
+import threading
 from importlib import resources
 from typing import Any
 
@@ -20,19 +23,27 @@ def create_app(settings: Settings | None = None, index: Index | None = None) -> 
 
     settings = settings or Settings()
     state: dict[str, Index] = {}
+    init_lock = threading.Lock()
 
     def ix() -> Index:
         if index is not None:
             return index
-        if "ix" not in state:
-            state["ix"] = Index.open(settings)
+        with init_lock:  # FastAPI runs sync endpoints in a threadpool: open the index exactly once
+            if "ix" not in state:
+                state["ix"] = Index.open(settings)
         return state["ix"]
 
     def role_of(request: Request) -> str:
-        role = request.headers.get("x-itops-role", settings.default_role)
-        if role not in ACCESS_LEVELS:
-            raise HTTPException(400, f"unknown role {role!r}")
-        return role
+        secret = settings.role_header_secret
+        claimed = request.headers.get("x-itops-role")
+        if not secret or claimed is None:
+            return settings.web_default_role
+        presented = request.headers.get("x-itops-proxy-secret", "")
+        if not hmac.compare_digest(presented.encode(), secret.encode()):
+            raise HTTPException(403, "role header without a valid proxy secret")
+        if claimed not in ACCESS_LEVELS:
+            raise HTTPException(400, f"unknown role {claimed!r}")
+        return claimed
 
     class AskBody(BaseModel):
         question: str = Field(min_length=3, max_length=2000)
@@ -53,7 +64,8 @@ def create_app(settings: Settings | None = None, index: Index | None = None) -> 
 
     @app.get("/api/stats")
     def api_stats() -> dict[str, Any]:
-        return ix().stats()
+        s = ix().stats()  # no paths or per-access counts for unauthenticated callers
+        return {k: s[k] for k in ("documents", "chunks", "store", "reranker", "embed_model")}
 
     @app.get("/api/prompts")
     def api_prompts() -> list[dict[str, Any]]:

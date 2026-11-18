@@ -23,12 +23,12 @@ classifiers = [
 # Base install: everything needed to ingest, search (hybrid + rerank, all local) and answer with Claude.
 # No torch, no server. Heavier pieces are opt-in extras.
 dependencies = [
-  "anthropic>=0.70",
+  "anthropic>=2.10",  # server-side fallbacks ("fallbacks" + server-side-fallback beta)
   "fastembed>=0.6",
   "numpy>=1.26",
   "sqlite-vec>=0.1.6",
   "pydantic>=2.7",
-  "pydantic-settings>=2.3",
+  "pydantic-settings>=2.7",  # NoDecode for list settings from env
   "pyyaml>=6.0",
   "pypdf>=5.0",
   "beautifulsoup4>=4.12",
@@ -72,7 +72,7 @@ build-backend = "hatchling.build"
 packages = ["src/itops_rag"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/itops_rag", "README.md", "LICENSE"]
+include = ["/src/itops_rag", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 # This project installs from public PyPI only, regardless of any machine-level index config.
 [[tool.uv.index]]

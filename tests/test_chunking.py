@@ -47,3 +47,11 @@ def test_invalid_split_arguments() -> None:
 
     with pytest.raises(ValueError):
         split_text("abc", 10, 10)
+
+
+def test_overlap_survives_long_paragraphs() -> None:
+    para = " ".join(["word"] * 150)  # ~750 chars, close to the chunk size
+    chunks = split_text(f"{para}\n\n{para}\n\n{para}", size=800, overlap=100)
+    assert len(chunks) == 3
+    assert all(c.startswith("word") for c in chunks)
+    assert len(chunks[1]) > len(para)  # carries some overlap from the previous paragraph

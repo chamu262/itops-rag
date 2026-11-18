@@ -15,24 +15,47 @@ def test_web_api(index: Index) -> None:
 
     from itops_rag.interfaces.web import create_app
 
+    index.settings.role_header_secret = "proxy-shared-secret"
     client = TestClient(create_app(index.settings, index=index))
+    staff = {"x-itops-role": "it-staff", "x-itops-proxy-secret": "proxy-shared-secret"}
     assert client.get("/healthz").json() == {"ok": True}
     assert "IT Ops RAG" in client.get("/").text
     assert any(p["id"] == "troubleshoot" for p in client.get("/api/prompts").json())
+    assert "index_dir" not in client.get("/api/stats").json()
 
-    hits = client.get("/api/search", params={"q": "break-glass envelope"}).json()
-    assert all(h["access"] != "security" for h in hits)
-    hits = client.get(
-        "/api/search", params={"q": "break-glass envelope"}, headers={"x-itops-role": "security"}
-    ).json()
+    # Unauthenticated callers are public: no it-staff or security documents.
+    hits = client.get("/api/search", params={"q": "break-glass envelope MG-401"}).json()
+    assert hits and all(h["access"] == "public" for h in hits)
+    # A role header without the proxy secret is rejected, never silently trusted.
+    bad = {"x-itops-role": "security", "x-itops-proxy-secret": "guess"}
+    assert client.get("/api/search", params={"q": "x"}, headers=bad).status_code == 403
+    assert (
+        client.get("/api/search", params={"q": "x"}, headers={"x-itops-role": "security"}).status_code == 403
+    )
+    sec = {"x-itops-role": "security", "x-itops-proxy-secret": "proxy-shared-secret"}
+    hits = client.get("/api/search", params={"q": "break-glass envelope"}, headers=sec).json()
     assert hits[0]["doc_id"] == "RB-ENTRA-009"
-    assert client.get("/api/search", params={"q": "x"}, headers={"x-itops-role": "root"}).status_code == 400
+    root = {"x-itops-role": "root", "x-itops-proxy-secret": "proxy-shared-secret"}
+    assert client.get("/api/search", params={"q": "x"}, headers=root).status_code == 400
 
-    r = client.post("/api/ask", json={"question": "MG-401 after macOS update"})
+    r = client.post("/api/ask", json={"question": "MG-401 after macOS update"}, headers=staff)
     body = r.json()
     assert r.status_code == 200 and body["cited"] == [1] and body["sources"][0]["doc_id"] == "RB-VPN-001"
     assert client.post("/api/ask", json={"question": "hello", "prompt": "nope"}).status_code == 400
-    assert client.get("/api/documents/RB-ENTRA-009").status_code == 404
+    assert client.get("/api/documents/RB-ENTRA-009", headers=staff).status_code == 404
+
+
+def test_web_ignores_role_header_without_configured_secret(index: Index) -> None:
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from itops_rag.interfaces.web import create_app
+
+    client = TestClient(create_app(index.settings, index=index))
+    hits = client.get(
+        "/api/search", params={"q": "break-glass envelope"}, headers={"x-itops-role": "security"}
+    ).json()
+    assert all(h["access"] == "public" for h in hits)
 
 
 def _call(server: Any, name: str, args: dict[str, Any]) -> Any:

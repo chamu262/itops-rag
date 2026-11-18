@@ -93,11 +93,14 @@ def _merge(pieces: list[str], size: int, overlap: int) -> list[str]:
     for piece in pieces:
         if current and len(current) + len(piece) > size:
             chunks.append(current.strip())
-            tail = current[-overlap:] if overlap else ""
+            # Carry over up to `overlap` characters, shrunk if needed so tail + next piece still fits in `size`
+            # (dropping the overlap entirely would lose context at exactly the boundaries that need it).
+            room = min(overlap, size - len(piece))
+            tail = current[-room:] if room > 0 else ""
             # Start the overlap at a word boundary so chunks don't begin mid-word.
             if tail and " " in tail:
                 tail = tail[tail.index(" ") + 1 :]
-            current = tail if len(tail) + len(piece) <= size else ""
+            current = tail
         current += piece
     if current.strip():
         chunks.append(current.strip())

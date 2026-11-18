@@ -111,3 +111,28 @@ def test_injection_is_detected_and_flagged(index: Index) -> None:
 
 def test_extract_citations_variants() -> None:
     assert extract_citations("a [2] b [1, 3] c [3; 4] d [2]") == [2, 1, 3, 4]
+
+
+def test_citation_ranges() -> None:
+    assert extract_citations("see [1-3] and [5–6]") == [1, 2, 3, 5, 6]
+
+
+def test_gate_without_reranker_uses_similarity_not_keyword_hits(settings) -> None:  # type: ignore[no-untyped-def]
+    from itops_rag.core.generate import gate
+    from itops_rag.core.models import Chunk, Hit
+
+    weak = Hit(
+        chunk=Chunk(id="d#0", doc_id="d", ordinal=0, text="x", meta={"vector_similarity": 0.05}),
+        score=0.03,
+        keyword_rank=1,
+    )
+    assert gate([weak], settings) is not None
+    strong = Hit(
+        chunk=Chunk(id="d#0", doc_id="d", ordinal=0, text="x", meta={"vector_similarity": 0.6}), score=0.03
+    )
+    assert gate([strong], settings) is None
+
+
+def test_unknown_model_is_charged_conservatively() -> None:
+    assert cost_usd("claude-something-new", 1_000_000, 0) >= cost_usd("claude-opus-5-5", 1_000_000, 0)
+    assert cost_usd("claude-opus-5", 1_000_000, 0) == pytest.approx(5.0)
