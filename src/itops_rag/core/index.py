@@ -254,8 +254,8 @@ class Index:
         k: int | None = None,
         systems: Sequence[str] | None = None,
         dry_run: bool = False,
-        assistant_name: str = "IT Ops RAG",
-        audience: str = "the IT operations team",
+        assistant_name: str | None = None,
+        audience: str | None = None,
     ) -> Answer:
         template = self.prompts.get(prompt)
         if template.needs_input and not input_text.strip():
@@ -276,8 +276,8 @@ class Index:
             template,
             input_text=input_text,
             dry_run=dry_run,
-            assistant_name=assistant_name,
-            audience=audience,
+            assistant_name=assistant_name or self.settings.assistant_name,
+            audience=audience or self.settings.audience,
         )
 
     def context_for(
@@ -298,12 +298,20 @@ class Index:
         hits = self.search(
             question, k=k or template.top_k or self.settings.top_k, role=role, doc_types=template.doc_types
         )
-        ans = self.generator.answer(question, hits, template, input_text=input_text, dry_run=True)
+        ans = self.generator.answer(
+            question,
+            hits,
+            template,
+            input_text=input_text,
+            dry_run=True,
+            assistant_name=self.settings.assistant_name,
+            audience=self.settings.audience,
+        )
         return {
             "refused": ans.refused,
             "reason": ans.reason,
             "warnings": ans.warnings,
-            "system": self.generator.system_prompt("IT Ops RAG", "the IT operations team"),
+            "system": self.generator.system_prompt(self.settings.assistant_name, self.settings.audience),
             "prompt": ans.text.split("--- user ---\n", 1)[-1] if not ans.refused else ans.text,
             "chunks": [h.to_dict() for h in hits],
         }

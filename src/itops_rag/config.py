@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     min_vector_similarity: float = 0.30
     """Refusal gate used when reranking is off."""
 
+    # Identity used in the system prompt (a personal agent would set its own name and audience).
+    assistant_name: str = "IT Ops RAG"
+    audience: str = "the IT operations team"
+
     # Access
     default_role: str = "it-staff"
 

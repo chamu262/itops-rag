@@ -1,0 +1,5 @@
+Change: Rotate the Entra ID SAML signing certificate used by Google Workspace SSO
+When: Thursday 14:00-15:00 CET (business hours)
+Plan: 1. Create new certificate in Entra. 2. Make it active. 3. Upload to Google Admin SSO profile.
+Backout: Re-activate old certificate.
+Validation: Sign in to Gmail as an admin.

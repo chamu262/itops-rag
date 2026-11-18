@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "itops-rag": {
+      "command": "itops-rag-mcp",
+      "env": {
+        "ITOPS_RAG_INDEX_DIR": "/absolute/path/to/.itops-rag/index",
+        "ITOPS_RAG_DEFAULT_ROLE": "it-staff"
+      }
+    }
+  }
+}

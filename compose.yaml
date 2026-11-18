@@ -1,0 +1,15 @@
+# docker compose up --build  ->  http://localhost:8080
+services:
+  itops-rag:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - itops-data:/data
+    restart: unless-stopped
+
+volumes:
+  itops-data:
